@@ -1,0 +1,272 @@
+// TASK-925: CLI experimental para un subconjunto de Zen real.
+// Se concatena con lexer_tokens.zen y codegen_structs.zen en el bootstrap.
+// Solo el adaptador cli_io.c importa libc; decisiones, lowering y emision en Zen.
+extern "C" {
+    fn sh_alloc(size:u64)->u64;
+    fn sh_free(address:u64);
+    fn sh_read(path:u64,buffer:u64,capacity:u64)->u64;
+    fn sh_write(buffer:u64,length:u64)->u64;
+    fn sh_error(code:u64);
+}
+
+fn sh_get(tokens:u64,index:u64,field:u64)->u64 {
+    unsafe { return volatile_load((tokens+index*16+field*4) as *u32) as u64; }
+}
+fn sh_kind(tokens:u64,index:u64)->u64 { return sh_get(tokens,index,0); }
+fn sh_eq(source:u64,tokens:u64,index:u64,text:str)->bool {
+    let start:u64=sh_get(tokens,index,1);
+    return fg_eq(source,65536,start,sh_get(tokens,index,2)-start,text);
+}
+fn sh_same_name(source:u64,tokens:u64,a:u64,b:u64)->bool {
+    let astart:u64=sh_get(tokens,a,1);
+    let bstart:u64=sh_get(tokens,b,1);
+    let length:u64=sh_get(tokens,a,2)-astart;
+    if sh_get(tokens,b,2)-bstart!=length { return false; }
+    let mut i:u64=0;
+    while i<length {
+        if fg_peek(source,65536,astart+i)!=fg_peek(source,65536,bstart+i) { return false; }
+        i+=1;
+    }
+    return true;
+}
+fn sh_copy(source:u64,tokens:u64,index:u64,out:u64,cap:u64,pos:u64)->u64 {
+    let start:u64=sh_get(tokens,index,1);
+    let end:u64=sh_get(tokens,index,2);
+    let mut p:u64=pos;
+    let mut i:u64=start;
+    while i<end {
+        p=fg_putc(out,cap,p,fg_peek(source,65536,i));
+        i+=1;
+    }
+    return fg_putc(out,cap,p,32);
+}
+
+// Devuelve bytes del dialecto del codegen, o los centinelas del codegen.
+// El backend conserva sus comprobaciones de ambitos, mutabilidad y tipos.
+fn sh_lower(source:u64,tokens:u64,count:u64,out:u64,cap:u64)->u64 {
+    let bad:u64=4294967294;
+    if count<11 { return bad; }
+    if sh_kind(tokens,0)!=8 || !sh_eq(source,tokens,1,"main") ||
+       sh_kind(tokens,1)!=7 || sh_kind(tokens,2)!=97 || sh_kind(tokens,3)!=98 ||
+       sh_kind(tokens,4)!=91 || sh_kind(tokens,5)!=43 || sh_kind(tokens,6)!=101 {
+        return bad;
+    }
+    let end:u64=count-4;
+    if sh_kind(tokens,end)!=16 || !sh_eq(source,tokens,end+1,"0") ||
+       sh_kind(tokens,end+1)!=1 || sh_kind(tokens,end+2)!=95 ||
+       sh_kind(tokens,end+3)!=102 { return bad; }
+    let mut i:u64=7;
+    let mut pos:u64=0;
+    let mut depth:u64=0;
+    let mut decl_type:u64=0;
+    let mut decl_name:u64=0;
+    let mut print_end:u64=0;
+    let mut comparisons:u64=0;
+    // El dialecto antiguo permite asignar escalares inmutables. Comprobar
+    // mutabilidad real aqui, respetando shadowing y salida de ambitos.
+    let mut names:[u32;32]=[0u32;32];
+    let mut levels:[u32;32]=[0u32;32];
+    let mut mutable:[u32;32]=[0u32;32];
+    let mut bindings:u64=0;
+    while i<end {
+        let k:u64=sh_kind(tokens,i);
+        if k==9 {
+            if decl_type!=0 || print_end!=0 { return bad; }
+            pos=fg_puts(out,cap,pos,"let ");
+            i+=1;
+            let mut is_mut:bool=false;
+            if i<end && sh_kind(tokens,i)==10 {
+                is_mut=true;
+                pos=fg_puts(out,cap,pos,"mut "); i+=1;
+            }
+            if i+3>=end || sh_kind(tokens,i)!=7 || sh_kind(tokens,i+1)!=94 ||
+               sh_kind(tokens,i+3)!=77 { return bad; }
+            if sh_eq(source,tokens,i,"print") || sh_eq(source,tokens,i,"print_uint") ||
+               sh_eq(source,tokens,i,"main") { return bad; }
+            if bindings>=32 { return 4294967295; }
+            names[bindings]=i as u32;
+            levels[bindings]=depth as u32;
+            if is_mut { mutable[bindings]=1u32; } else { mutable[bindings]=0u32; }
+            bindings+=1;
+            decl_name=i;
+            decl_type=sh_kind(tokens,i+2);
+            if decl_type!=50 && decl_type!=39 { return bad; }
+            pos=sh_copy(source,tokens,i,out,cap,pos);
+            pos=fg_puts(out,cap,pos,"= ");
+            i+=4;
+        } else if k==7 && sh_eq(source,tokens,i,"print_uint") {
+            if print_end!=0 || decl_type!=0 || i+2>=end || sh_kind(tokens,i+1)!=97 {
+                return bad;
+            }
+            // Solo llamada como sentencia; void no puede participar en expresiones.
+            if i!=7 && sh_kind(tokens,i-1)!=95 && sh_kind(tokens,i-1)!=101 &&
+               sh_kind(tokens,i-1)!=102 { return bad; }
+            let mut j:u64=i+1;
+            let mut parens:u64=0;
+            let mut found:bool=false;
+            while j<end && !found {
+                if sh_kind(tokens,j)==97 { parens+=1; }
+                if sh_kind(tokens,j)==98 {
+                    if parens==0 { return bad; }
+                    parens-=1;
+                    if parens==0 { found=true; }
+                }
+                if !found { j+=1; }
+            }
+            if !found || j+1>=end || sh_kind(tokens,j+1)!=95 { return bad; }
+            print_end=j;
+            // +0 exige u64 (print_uint no acepta bool).
+            pos=fg_puts(out,cap,pos,"print (0 + ");
+            i+=1;
+        } else {
+            if k==1 {
+                // Solo decimales con sufijo u64; evita inferencia i32 de Rust
+                // y truncamiento silencioso del lexer/generador existente.
+                let start:u64=sh_get(tokens,i,1);
+                let finish:u64=sh_get(tokens,i,2);
+                if finish-start<4 || !fg_eq(source,65536,finish-3,3,"u64") { return bad; }
+                let mut n:u64=0;
+                let mut bpos:u64=start;
+                while bpos<finish-3 {
+                    let b:u64=fg_peek(source,65536,bpos);
+                    if b<48 || b>57 { return bad; }
+                    let digit:u64=b-48;
+                    if n>1844674407370955161u64 ||
+                       (n==1844674407370955161u64 && digit>5) { return bad; }
+                    n=n*10+digit;
+                    pos=fg_putc(out,cap,pos,b);
+                    bpos+=1;
+                }
+                pos=fg_putc(out,cap,pos,32);
+            } else if k==36 || k==37 {
+                if k==36 { pos=fg_puts(out,cap,pos,"(0 == 0) "); }
+                else { pos=fg_puts(out,cap,pos,"(0 != 0) "); }
+            } else {
+                // No llamadas de usuario, arrays, structs, strings, division,
+                // casts, bitwise, returns interiores ni otras extensiones.
+                if k!=7 && k!=12 && k!=13 && k!=14 && k!=56 && k!=57 && k!=58 &&
+                   k!=62 && k!=63 && k!=64 && k!=65 && k!=66 && k!=67 &&
+                   k!=68 && k!=69 && k!=70 && k!=77 && k!=95 &&
+                   k!=97 && k!=98 && k!=101 && k!=102 { return bad; }
+                if k==57 {
+                    // El compilador Rust no admite negacion de u64.
+                    let previous:u64=sh_kind(tokens,i-1);
+                    if previous!=1 && previous!=7 && previous!=98 && previous!=36 && previous!=37 {
+                        return bad;
+                    }
+                }
+                if k==7 {
+                    if i+1<end && sh_kind(tokens,i+1)==77 {
+                        let mut binding:u64=bindings;
+                        let mut found:bool=false;
+                        while binding>0 && !found {
+                            binding-=1;
+                            if sh_same_name(source,tokens,i,names[binding] as u64) { found=true; }
+                        }
+                        if !found { return 4294967293; }
+                        if mutable[binding]!=1u32 { return 4294967293; }
+                    }
+                    if sh_eq(source,tokens,i,"print") || sh_eq(source,tokens,i,"main") {
+                        return bad;
+                    }
+                    if i+1<end && sh_kind(tokens,i+1)==97 { return bad; }
+                }
+                if k>=62 && k<=67 {
+                    comparisons+=1;
+                    // El dialecto anterior tiene un unico nivel comparativo.
+                    if comparisons>1 { return bad; }
+                }
+                if k==101 {
+                    if decl_type!=0 || print_end!=0 { return bad; }
+                    depth+=1; comparisons=0;
+                }
+                if k==102 {
+                    if depth==0 || decl_type!=0 || print_end!=0 { return bad; }
+                    depth-=1; comparisons=0;
+                    while bindings>0 && (levels[bindings-1] as u64)>depth { bindings-=1; }
+                }
+                pos=sh_copy(source,tokens,i,out,cap,pos);
+                if i==print_end && print_end!=0 {
+                    pos=fg_puts(out,cap,pos,") "); print_end=0;
+                }
+                if k==95 {
+                    if print_end!=0 { return bad; }
+                    comparisons=0;
+                    if decl_type!=0 {
+                        // Asersion estatica del tipo anotado, sin efectos.
+                        pos=fg_puts(out,cap,pos,"if ");
+                        pos=sh_copy(source,tokens,decl_name,out,cap,pos);
+                        if decl_type==50 { pos=fg_puts(out,cap,pos,"+ 0 == 0 "); }
+                        pos=fg_puts(out,cap,pos,"{ } ");
+                        decl_type=0;
+                    }
+                }
+            }
+            i+=1;
+        }
+        if pos==18446744073709551615u64 { return 4294967295; }
+    }
+    if depth!=0 || decl_type!=0 || print_end!=0 { return bad; }
+    return pos;
+}
+
+// El dialecto imprime salto de linea; print_uint de Zen no lo hace.
+// Ajuste exclusivamente sobre el C generado, nunca sobre texto fuente.
+fn sh_compact_output(out:u64,length:u64)->u64 {
+    let mut read:u64=0;
+    let mut write:u64=0;
+    while read<length {
+        if fg_eq(out,length,read,8,"\"%llu\\n\"") {
+            write=fg_puts(out,length,write,"\"%llu\"");
+            read+=8;
+        } else {
+            write=fg_putc(out,length,write,fg_peek(out,length,read)); read+=1;
+        }
+    }
+    return write;
+}
+
+pub fn zen_selfhost_cli(argc:u64,argv:u64)->u64 {
+    if argc!=2 { unsafe { sh_error(2); } return 2; }
+    let mut path:u64=0;
+    unsafe { path=volatile_load((argv+8) as *u64); }
+    let mut source:u64=0;
+    let mut tokens:u64=0;
+    let mut lowered:u64=0;
+    let mut output:u64=0;
+    unsafe {
+        source=sh_alloc(65536);
+        tokens=sh_alloc(32768);
+        lowered=sh_alloc(131072);
+        output=sh_alloc(1048576);
+    }
+    let mut rc:u64=0;
+    if source==0 || tokens==0 || lowered==0 || output==0 { rc=2; }
+    let mut length:u64=0;
+    if rc==0 {
+        unsafe { length=sh_read(path,source,65536); }
+        if length==18446744073709551615u64 { rc=2; }
+    }
+    let mut count:u64=0;
+    if rc==0 {
+        count=zen_lex_tokens(source,length,tokens,2048);
+        if count==4294967295 { rc=5; }
+    }
+    let mut size:u64=0;
+    if rc==0 {
+        size=sh_lower(source,tokens,count,lowered,131072);
+        if size<4294967293 { size=zen_codegen_zen_subset(lowered,size,output,1048576); }
+        if size==4294967295 { rc=4; }
+        else if size==4294967294 { rc=5; }
+        else if size==4294967293 { rc=6; }
+    }
+    if rc==0 {
+        size=sh_compact_output(output,size);
+        unsafe { if sh_write(output,size)!=0 { rc=2; } }
+    }
+    unsafe {
+        if rc!=0 { sh_error(rc); }
+        sh_free(source); sh_free(tokens); sh_free(lowered); sh_free(output);
+    }
+    return rc;
+}

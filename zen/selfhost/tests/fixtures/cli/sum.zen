@@ -1,0 +1,11 @@
+// A real Zen file: the same source is accepted by the Rust bootstrap.
+fn main() -> i32 {
+    let mut n: u64 = 0u64;
+    let mut sum: u64 = 0u64;
+    while n < 10u64 {
+        sum = sum + n;
+        n = n + 1u64;
+    }
+    print_uint(sum);
+    return 0;
+}

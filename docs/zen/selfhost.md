@@ -1,4 +1,4 @@
-# Lexer self-hosted de Zen — TASK-902
+# Componentes y CLI parcial de autohosting de Zen
 
 Primer componente del compilador escrito en Zen y compilado por el propio
 compilador. Es un lexer **contador** freestanding del subconjunto MVP: recorre
@@ -265,6 +265,87 @@ checks (UB documentado), máx 64 elementos. Decisión: ADR-023.
 `v.f0`/escritura con `let mut`. 19 tests (18 programas válidos + 26 errores)
 compilan/ejecutan el C y comparan con referencia; sin parámetros/retorno de
 structs, sin métodos. Decisión: ADR-023.
+
+## CLI sobre archivos Zen reales (TASK-925)
+
+`cli.zen` integra **el lexer materializado de TASK-902D y el generador C de
+TASK-902K** mediante un lowering escrito en Zen. El ejecutable acepta un archivo
+Zen real, verifica el subconjunto, comprueba tipos/nombres/mutabilidad y escribe
+C11 en stdout **solo tras validar el programa completo**. No ejecuta Rust,
+Python ni `cc` al procesar la entrada. `cli_io.c` (33 líneas) aporta `main`,
+`malloc/free`, lectura acotada y escritura; la selección de argumentos, fases,
+errores y generación permanecen en Zen. `build_cli.py` solo construye el
+bootstrap, concatenando las tres unidades por la falta de módulos.
+
+```bash
+# Primero construir el compilador Rust de la forma habitual.
+python3 zen/selfhost/build_cli.py -o /tmp/zen-selfhost
+# --zen RUTA o ZEN=RUTA selecciona otro binario bootstrap.
+/tmp/zen-selfhost zen/selfhost/tests/fixtures/cli/sum.zen > /tmp/sum.c
+cc -std=c11 -O2 -Wall -Wextra -Werror /tmp/sum.c -o /tmp/sum
+/tmp/sum
+# 45 (sin salto de línea, igual que print_uint de Rust)
+ZEN=zen/compiler/target/release/zen python3 -m unittest discover \
+    -s zen/selfhost/tests -p test_selfhost_cli.py -v
+```
+
+El mismo archivo se compila con la CLI Rust en la prueba diferencial; no se
+traduce a un programa Rust de referencia distinto.
+
+### Subconjunto de entrada
+
+- Un único `fn main() -> i32 { ... return 0; }`, con retorno final literal `0`.
+- Declaraciones `let nombre: u64 = expr;` o `let nombre: bool = expr;`, con
+  `mut` opcional; asignación con tipo exacto, ámbitos interiores y shadowing.
+- Todos los literales numéricos del cuerpo deben ser decimales con sufijo
+  `u64`, entre `0u64` y `18446744073709551615u64`. No se admiten `_`, otras
+  bases, sufijos distintos ni negación unaria de `u64`. Esto evita inferencia
+  implícita a i32 y divergencias por overflow con el compilador de referencia.
+- Aritmética `+`, `-`, `*` envolvente a 64 bits; paréntesis; `true`, `false`,
+  `!`, `&&`, `||` y comparaciones. Como máximo **una comparación textual por
+  expresión/sentencia/condición**; los booleanos locales permiten descomponer
+  condiciones complejas. El generador anterior usa otro nivel de precedencia
+  comparativa y no se generaliza aquí.
+- `if`/`else` y `while` con condición bool. `print_uint(expr);` como sentencia,
+  solo para u64 y sin salto de línea. Espacios ASCII y comentarios `//` o de
+  bloque anidado son eliminados por el lexer compartido.
+
+El punto de entrada `zen_codegen_zen_subset` activa en el generador la regla de
+Zen real: `< <= > >=` solo entre u64; los bool admiten `== !=`. El punto de entrada
+histórico `zen_codegen_structs` conserva su contrato y sus pruebas previas.
+El lowering conserva las demás comprobaciones del codegen y añade las que su dialecto
+no tenía para escalares: mutabilidad y anotaciones explícitas. Estas últimas se
+verifican con expresiones auxiliares sin efectos. Ajusta el formato C generado
+para reproducir `print_uint`, que no añade el salto de línea del `print` del
+dialecto histórico. Los otros diez componentes se conservan como pruebas
+separadas: no se finge que todos participen en la CLI.
+
+### Límites y errores
+
+Entrada ≤65.536 bytes, ≤2.048 tokens originales, lowering ≤131.072 bytes y
+salida ≤1.048.576 bytes. El lowering añade tokens/nodos de comprobación y puede
+alcanzar antes los límites internos del codegen (2.048 tokens, 1.024 nodos,
+32 variables activas, profundidad 32). Se procesa en host x86_64 Linux con libc;
+no es una herramienta ejecutable en Ferros. Las funciones de E/S devuelven
+errores al código Zen, que libera todos los buffers.
+
+Estados: `0` éxito; `2` uso/E/S/memoria (también fichero demasiado grande);
+`4` capacidad del lowering/generador; `5` léxico/sintaxis/subconjunto no admitido
+(también límite del lexer); `6` tipos/nombres/mutabilidad. En error no se emite
+C; una avería de escritura puede haber publicado parte de stdout. Los
+mensajes no contienen spans ni una taxonomía diagnóstica completa.
+
+Funciones de usuario, structs/arrays en la entrada real, strings, casts,
+bitwise, división/resto, `break`/`continue`, retornos interiores y otras formas
+del lenguaje quedan fuera. Aunque TASK-902K contiene algunas de ellas en su
+dialecto, no se conectan a sintaxis real sin contrato ni verificación. No hay
+AST unificado, ni compilación del propio compilador Zen: **no es autohosting
+completo**. El bootstrap sigue dependiendo del compilador Rust.
+
+Las pruebas cubren positivos con los mismos bytes de entrada (C generado en
+`-O0` y `-O2` frente a Rust), negativos rechazados por ambos, programas válidos
+Rust fuera del subconjunto, límites de entrada, E/S y ausencia de subprocesses
+con `PATH` vacío. El fixture real calcula `45` mediante bucle y acumulador.
 
 ## Siguiente paso
 
