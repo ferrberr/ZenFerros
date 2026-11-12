@@ -140,6 +140,12 @@ int main(void){
     *((uint64_t*)ramfs_pool)=1;*((uint64_t*)ramfs_pool+1)=420; /* file, 0644 */
     trap[4088]=6;
     test_dispatch(128,0,PTR(frame),0);CHECK(trap[4088]==(uint64_t)-13);
+    trap[4088]=6;trap[4084]=0;trap[4085]=1;
+    test_dispatch(128,0,PTR(frame),0);CHECK(trap[4088]==(uint64_t)-14);
+    trap[4088]=6;trap[4084]=UINT64_MAX-1;trap[4085]=4;
+    test_dispatch(128,0,PTR(frame),0);CHECK(trap[4088]==(uint64_t)-14);
+    trap[4088]=6;trap[4084]=0x40000000u;trap[4085]=4097;
+    test_dispatch(128,0,PTR(frame),0);CHECK(trap[4088]==(uint64_t)-22);
     vfs_state[0]=0;
     // syscall 9 (readdir): size limit, writable destination, uninitialised VFS.
     trap[4088]=9;trap[4083]=0x40000000u;trap[4084]=4097u;

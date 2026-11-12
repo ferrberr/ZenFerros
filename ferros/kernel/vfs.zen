@@ -15,9 +15,9 @@
 // Inode layout: +0 kind (0 free,1 file,2 dir), +8 perms, +16 size,
 //   +24 block index of first (and only) data block.
 //
-// TASK-919 lookup order: RAMFS first, then ZENFS01 (read-only). A PFS descriptor
-// is tagged, so vfs_read copies through pfs_read_ptr and vfs_write returns EROFS
-// (-30). vfs_readdir lists RAMFS directory order first and then PFS inode order.
+// TASK-919/924 lookup order: RAMFS first, then ZENFS01. Tagged descriptors
+// read from cache and synchronously replace through pfs_commit_ptr. boot.txt
+// stays protected. readdir lists RAMFS order first and then PFS inode order.
 
 fn vfs_state(offset:u64)->u64 {
     unsafe { return volatile_load((ferros_vfs_state()+offset) as *u64); }
@@ -241,7 +241,7 @@ fn vfs_open(path:u64)->i64 {
         vfs_set(1032+slot*8,inode);
         return (100+slot) as i64;
     }
-    // RAMFS has no such name: fall back to the optional read-only ZENFS01.
+    // RAMFS has no such name: fall back to the optional ZENFS01 cache.
     // An empty path is the RAMFS root and never a PFS file; any PFS error
     // (missing disk, corrupt superblock, ENOENT) keeps the old ENOENT result.
     if memory_read8(p)!=0u8 {
@@ -290,7 +290,7 @@ fn vfs_read(fd:u64,buf:u64,count:u64)->i64 {
 }
 
 fn vfs_write(fd:u64,buf:u64,count:u64)->i64 {
-    if vfs_is_pfs(fd) { return -30; } // EROFS: ZENFS01 is read-only through the VFS
+    if vfs_is_pfs(fd) { return vfs_write_pfs(fd,buf,count); }
     let inode:u64=vfs_inode(fd);
     if inode==0 { return -9; }
     if memory_read64(inode)!=1u64 { return -21; }
@@ -314,10 +314,10 @@ fn vfs_write(fd:u64,buf:u64,count:u64)->i64 {
 // CPL3 write path: the mode bits decide. There are no per-user credentials, so
 // CPL3 is modelled as the "others" class (0o002) and the fixtures are 0644, so
 // a user task gets EACCES; kernel-side callers keep using vfs_write directly.
-// PFS descriptors reject writes earlier with EROFS regardless of mode.
+// PFS descriptors replace existing files synchronously; boot.txt is protected.
 fn vfs_write_user(fd:u64,buf:u64,count:u64)->i64 {
     if vfs_state(0)!=1 { return -1; }
-    if vfs_is_pfs(fd) { return -30; }
+    if vfs_is_pfs(fd) { return vfs_write_pfs(fd,buf,count); }
     let inode:u64=vfs_inode(fd);
     if inode==0 { return -9; }
     if memory_read64(inode)!=1u64 { return -21; }
@@ -396,10 +396,10 @@ fn vfs_state_base()->u64 {
     return base;
 }
 
-// TASK-919: read-only ZENFS01 snapshot. `storage_fs.zen` fills this cache at
+// TASK-919/924: ZENFS01 cache. `storage_fs.zen` fills this cache at
 // boot (pfs_export) and main.zen publishes it here. Keeping the PFS accessors
-// in this unit avoids a hard dependency on ATA/heap for host tests that compile
-// vfs.zen alone; no path below ever writes to the disk or to the cache.
+// in this unit keeps cached reads independent of ATA/heap. The writer calls
+// pfs_commit_ptr in storage_fs.zen (stubbed by isolated host policy fixtures).
 // Cache layout: +0 count, +8 entries (name[24] + size u64), +264 data[8][512].
 fn vfs_pfs_cache()->u64 {
     return vfs_state(1160);
@@ -635,7 +635,7 @@ fn vfs_self_test()->bool {
     if vfs_readdir(buf,7u64)!=-28 { return false; }
 
     if pfs_ok {
-        // boot.txt is visible through lookup, readable, and strictly read-only.
+        // boot.txt is visible through lookup, readable, and protected from writes.
         vfs_self_path(path,"boot.txt");
         let pfd:i64=vfs_open(path);
         if pfd!=100 { return false; }
@@ -651,8 +651,8 @@ fn vfs_self_test()->bool {
             digit+=1u64;
         }
         if memory_read8(buf+(pn as u64)-1u64)!=10u8 { return false; } // '\n'
-        if vfs_write(pfd as u64,src,1u64)!=-30 { return false; }
-        if vfs_write_user(pfd as u64,src,1u64)!=-30 { return false; }
+        if vfs_write(pfd as u64,src,1u64)!=-13 { return false; }
+        if vfs_write_user(pfd as u64,src,1u64)!=-13 { return false; }
         let pn2:i64=vfs_read(pfd as u64,buf,32u64);
         if pn2!=pn { return false; } // the rejected writes changed nothing
         if vfs_close(pfd as u64)!=0 { return false; }
@@ -750,4 +750,25 @@ fn vfs_self_test()->bool {
     if !vfs_self_name_at(dir,32u64,"notes.txt") || memory_read64(dir+56)!=2u64 { return false; }
     if memory_read8(dir+64)!=0u8 { return false; }
     return true;
+}
+
+// Write through first; publish cached bytes only after successful ATA flush.
+// Descriptors resolve by name, making replacements visible to every open.
+fn vfs_write_pfs(fd:u64,buf:u64,count:u64)->i64 {
+    if count>512u64 { return -27i64; }
+    let name:u64=vfs_pfs_name(fd);
+    let found:i64=pfs_find_ptr(name);
+    if found<0i64 { return -5i64; }
+    let cache:u64=vfs_pfs_cache();
+    let result:i64=pfs_commit_ptr(name,buf,count,cache);
+    if result<0i64 { return result; }
+    let entry:u64=cache+8u64+(found as u64)*32u64;
+    let data:u64=cache+264u64+(found as u64)*512u64;
+    let mut index:u64=0;
+    while index<count {
+        memory_write8(data+index,memory_read8(buf+index));
+        index+=1u64;
+    }
+    memory_store64(entry+24u64,count);
+    return result;
 }

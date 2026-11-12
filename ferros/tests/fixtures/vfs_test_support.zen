@@ -12,3 +12,6 @@ fn ferros_ramfs_pool()->u64 {
 fn ferros_vfs_state()->u64 {
     unsafe { return test_vfs_state(); }
 }
+
+// No disk is published in this isolated host policy fixture.
+fn pfs_commit_ptr(name:u64,src:u64,len:u64,cache:u64)->i64 { return -5i64; }

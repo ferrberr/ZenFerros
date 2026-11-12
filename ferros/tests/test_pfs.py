@@ -23,6 +23,7 @@ HARNESS=r"""
 static _Alignas(16) unsigned char disk[SECTORS][512];
 static unsigned char sector[512];
 static int disk_present=1;
+static unsigned fail_command=0, fail_lba=0, fail_skip=0;
 static int data_pos=0;
 static unsigned lba=0;
 static unsigned char lba0=0, lba1=0, lba2=0;
@@ -30,6 +31,8 @@ static uint8_t status=0x50;
 static char serial[8192];
 static size_t serial_len=0;
 
+extern int64_t test_pfs_export(uint64_t cache);
+extern int64_t test_pfs_commit(uint64_t name,uint64_t src,uint64_t len,uint64_t cache);
 extern void test_pfs_init(void);
 extern void test_pfs_boot(void);
 extern uint32_t test_pfs_list(void);
@@ -60,6 +63,9 @@ void ferros_out8(uint16_t port,uint8_t value) {
     else if(port==0x1f7) {
         lba=(unsigned)lba0 | ((unsigned)lba1<<8) | ((unsigned)lba2<<16);
         if(lba>=SECTORS) { status=0x51; return; }
+        if(value==fail_command && (fail_lba==0 || lba==fail_lba)) {
+            if(fail_skip) fail_skip--; else { status=0x51; return; }
+        }
         if(value==0x20) { memcpy(sector,disk[lba],512); data_pos=0;status=0x58; }
         else if(value==0x30) { data_pos=0;status=0x58; }
         else if(value==0xe7) { status=0x50; }
@@ -148,6 +154,33 @@ int main(void) {
     memset(buffer,0,sizeof buffer);
     if(test_pfs_read(1,(uint64_t)(uintptr_t)buffer,16)!=5 || memcmp(buffer,"Hello",5)!=0) { puts("read hello.zen"); return 20; }
     if(test_pfs_list()!=2) { puts("list after create"); return 21; }
+
+    /* TASK-924: actual replacement/flush path; fixed scratch survives >heap calls. */
+    _Alignas(16) unsigned char cache[8192];
+    const uint64_t cache_ptr=(uint64_t)(uintptr_t)cache;
+    const uint64_t name_ptr=(uint64_t)(uintptr_t)"hello.zen";
+    if(test_pfs_export(cache_ptr)!=0) return 60;
+    for(int i=0;i<150;i++) {
+        if(test_pfs_commit(name_ptr,(uint64_t)(uintptr_t)payload,512,cache_ptr)!=512) return 61;
+    }
+    if(test_pfs_commit(name_ptr,0,513,cache_ptr)!=-27) return 62;
+    if(test_pfs_commit((uint64_t)(uintptr_t)"boot.txt",0,0,cache_ptr)!=-13) return 63;
+    if(test_pfs_commit(name_ptr,0,0,cache_ptr)!=0 || *(uint64_t*)(disk[18]+24)!=0) return 64;
+    /* Errors in data write, inode re-read, metadata write, flush invalidate cache. */
+    const unsigned commands[]={0x30,0x20,0x30,0xe7};
+    const unsigned lbas[]={26,18,18,0};
+    const unsigned skips[]={0,1,0,0};
+    for(int i=0;i<4;i++) {
+        if(test_pfs_write(1,(uint64_t)(uintptr_t)payload,5)!=5) return 65;
+        if(test_pfs_export(cache_ptr)!=0) return 66;
+        fail_command=commands[i];fail_lba=lbas[i];fail_skip=skips[i];
+        if(test_pfs_commit(name_ptr,(uint64_t)(uintptr_t)"new",3,cache_ptr)!=-5) return 67;
+        if(*(uint64_t*)cache!=0) return 68;
+        fail_command=0;
+    }
+    fail_command=0;
+    if(test_pfs_write(1,(uint64_t)(uintptr_t)payload,5)!=5) return 69;
+
     if(memcmp(disk[18],"hello.zen",9)!=0 || disk[18][9]!=0) { puts("second inode name"); return 22; }
     if(*(uint32_t*)(disk[18]+32)!=26) { puts("second data lba"); return 23; }
     if(memcmp(disk[26],"Hello",5)!=0) { puts("data block not written"); return 24; }
@@ -244,6 +277,8 @@ fn pfs_test_name(id:u64)->str {
     return "";
 }
 
+pub fn test_pfs_export(cache:u64)->i64 { return pfs_export(cache); }
+pub fn test_pfs_commit(name:u64,src:u64,len:u64,cache:u64)->i64 { return pfs_commit_ptr(name,src,len,cache); }
 pub fn test_pfs_init() { heap_init(); }
 pub fn test_pfs_boot() { pfs_boot(); }
 pub fn test_pfs_list()->u32 { return pfs_list(); }

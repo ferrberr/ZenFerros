@@ -21,14 +21,55 @@
 // unavailable/IO error, -3 corrupt or unformatted superblock, -4 inode table
 // full, -5 ENOENT.
 //
-// Every public call reserves one 512-byte heap buffer and reuses it for all
-// the sectors it touches.  heap_alloc has no free(), so the kernel only uses
-// this API from pfs_boot(); tests stay far below the 64 KiB heap.
+// The original kernel str APIs reserve a 512-byte heap buffer per call.
+// The VFS writer pfs_commit_ptr reuses cache+4608 instead, avoiding heap
+// exhaustion during arbitrarily many sequential CPL3 writes.
 //
 // pfs_boot() is called after storage_boot() and before the ring-3 shell.  It
 // formats an invalid superblock, increments (or creates) boot.txt and prints
 // "PFS: BOOT <n> FILES=<n>".  Any ATA failure prints "PFS: UNAVAILABLE" and
 // the boot continues; persistence is optional and never a reason to panic.
+
+// TASK-924: synchronous whole-file replacement for VFS descriptors. Scratch
+// belongs to the 8192-byte supervisor cache; no per-write heap allocation.
+// Returns POSIX-style errors; the syscall caller validates user memory first.
+fn pfs_commit_ptr(name:u64,src:u64,len:u64,cache:u64)->i64 {
+    if len>512u64 { return -27i64; } // EFBIG: never a partial write
+    if cache==0u64 { return -5i64; }
+    if !pfs_ptr_name_ok(name) { return -22i64; }
+    if len>0u64 && src==0u64 { return -22i64; }
+    if pfs_name_equals(name,"boot.txt") { return -13i64; }
+    let buffer:u64=cache+4608u64;
+    if pfs_check(buffer)<0i64 { return -5i64; }
+    let mut slot:u64=0;
+    while slot<8u64 {
+        if ata_read_sector(pfs_inode_lba(slot),buffer)<0i64 { return -5i64; }
+        if pfs_inode_used(buffer) && pfs_name_ptr_equals(buffer,name) { break; }
+        slot+=1u64;
+    }
+    if slot==8u64 { return -5i64; }
+    pfs_zero(buffer);
+    let mut index:u64=0;
+    while index<len {
+        memory_write8(buffer+index,memory_read8(src+index));
+        index+=1u64;
+    }
+    // Once a data write is attempted, failure may have changed the disk.
+    // Invalidate the cache instead of serving a misleading older snapshot.
+    if ata_write_sector(pfs_data_lba(slot),buffer)<0i64 {
+        memory_store64(cache,0u64); return -5i64;
+    }
+    if ata_read_sector(pfs_inode_lba(slot),buffer)<0i64 {
+        memory_store64(cache,0u64); return -5i64;
+    }
+    memory_store64(buffer+24u64,len);
+    pfs_store32(buffer+32u64,pfs_data_lba(slot));
+    if ata_write_sector(pfs_inode_lba(slot),buffer)<0i64 {
+        memory_store64(cache,0u64); return -5i64;
+    }
+    if ata_flush()<0i64 { memory_store64(cache,0u64); return -5i64; }
+    return len as i64;
+}
 
 fn pfs_zero(buffer:u64) {
     let mut index:u64=0;
@@ -189,17 +230,17 @@ fn pfs_find(name:str)->i64 {
     return pfs_lookup(name,buffer);
 }
 
-// TASK-919: read-only ZENFS01 snapshot for the VFS.
+// TASK-919/924: ZENFS01 cache for the VFS.
 //
 // `vfs.zen` is also compiled by host tests that do not link this unit, so it
 // cannot reference the ATA heap API directly. `pfs_export` copies every used
 // inode through the same read path as pfs_read into a supervisor-owned cache;
-// the VFS then serves open/read/readdir from that immutable snapshot. The disk
-// is never written from the VFS. Cache layout (little endian):
+// the VFS then serves open/read/readdir from the cache. TASK-924 writes
+// through to ATA and updates cached bytes only after flush. Cache layout:
 //   +0    u64 file count (written last; 0 means "not published")
 //   +8    8 entries of 32 bytes: name[24] + size u64
 //   +264  8 data blocks of 512 bytes (entry i at +264+i*512)
-// Total 4360 bytes; main.zen reserves 8192.
+// Total 4360 bytes; main.zen reserves 8192. +4608..5119 is write scratch.
 fn pfs_ptr_length(name:u64)->u64 {
     let mut length:u64=0;
     while length<=23u64 {
@@ -265,7 +306,7 @@ fn pfs_disk_read_ptr(name:u64,dst:u64,max:u64)->i64 {
     return -5i64;
 }
 
-// Publish the read-only snapshot. The caller owns `cache` and must keep it
+// Publish the initial cache snapshot. The caller owns `cache` and must keep it
 // alive (the kernel heap has no free). Returns 0 only when the count was
 // published; otherwise the VFS keeps the pre-TASK-919 RAMFS-only behaviour.
 fn pfs_export(cache:u64)->i64 {

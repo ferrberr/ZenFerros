@@ -1,4 +1,4 @@
-# Persistencia ATA y mini-FS ZENFS01 (TASK-914 / TASK-916 / TASK-919)
+# Persistencia ATA y mini-FS ZENFS01 (TASK-914 / TASK-916 / TASK-919 / TASK-924)
 
 Ferros guarda estado en un disco IDE/ATA raw y lo recupera entre ejecuciones
 distintas de QEMU. Hay dos capas independientes sobre el mismo disco:
@@ -8,9 +8,11 @@ distintas de QEMU. Hay dos capas independientes sobre el mismo disco:
    con nombre, inodos y un bloque de datos por archivo.
 
 **TASK-919** conecta el mini-FS con el VFS: `boot.txt` aparece en `ls` y `cat
-boot.txt` lo lee desde CPL3, siempre en modo solo lectura.
+boot.txt` lo lee desde CPL3. **TASK-924** permite reemplazar archivos PFS
+existentes desde CPL3 vía syscall 6, hasta 512 B. `boot.txt` sigue reservado
+al kernel; no se permite crear/borrar desde CPL3.
 
-Ninguna de las dos usa caché, journaling ni particiones. La persistencia es
+Ninguna de las dos usa caché de bloques, journaling ni particiones. La persistencia es
 opcional: si ATA falla, el arranque continúa siempre sin `kernel_panic`.
 
 ## Integración en el arranque
@@ -35,11 +37,14 @@ HITO 7 OK
 - Cualquier fallo de ATA produce `PERSIST: UNAVAILABLE` y/o
   `PFS: UNAVAILABLE`; el arranque sigue y termina en estado 33.
 
-Tras `pfs_boot()`, `kernel_entry` construye una instantánea read-only de 8192 B
+Tras `pfs_boot()`, `kernel_entry` construye una caché de 8192 B
 con `pfs_export` (usa `pfs_disk_read_ptr`, la misma ruta que `pfs_read`) y la
 publica en el VFS. `ls` muestra `hello.zen`, `notes.txt`, `boot.txt` (RAMFS
 primero, PFS después) y `cat boot.txt` imprime `boot=<n>`;
-`vfs_write`/`vfs_write_user` sobre ese descriptor devuelven EROFS (−30). El VFS
+`vfs_write`/`vfs_write_user` sobre ese descriptor devuelven EACCES (−13).
+Los demás archivos existentes aceptan reemplazos síncronos: datos, inodo,
+flush, y actualización de caché solo tras éxito. El contrato de errores y
+fallos está en [filesystem.md](filesystem.md). El VFS
 sirve `open`/`read`/`readdir` desde la instantánea con `pfs_find_ptr`,
 `pfs_read_ptr`, `pfs_readdir_size`, `pfs_readdir_names` y `pfs_available`
 (definidos en `vfs.zen` para que los tests host puedan compilarlo sin ATA).
@@ -169,9 +174,11 @@ fn pfs_create(name:str)->i64
 fn pfs_write(name:str,src:u64,len:u64)->i64
 fn pfs_read(name:str,dst:u64,max:u64)->i64
 fn pfs_delete(name:str)->i64
-// TASK-919: instantánea read-only para el VFS y lectura por puntero
+// TASK-919: caché inicial para el VFS y lectura por puntero
 fn pfs_export(cache:u64)->i64
 fn pfs_disk_read_ptr(name:u64,dst:u64,max:u64)->i64
+// TASK-924: reemplazo síncrono; errores POSIX del VFS, scratch en cache+4608
+fn pfs_commit_ptr(name:u64,src:u64,len:u64,cache:u64)->i64
 ```
 
 | Retorno | Significado |
@@ -233,12 +240,16 @@ shell `cat boot.txt` → syscall 4 → vfs_open → RAMFS miss
   buscar el archivo en la instantánea sin volver a resolver la ruta.
 - La instantánea se construye una sola vez tras `pfs_boot()`
   (`pfs_export` → `pfs_disk_read_ptr`, misma lógica que `pfs_read`) y se publica
-  en `vfs_state+1160`. El VFS nunca vuelve a tocar ATA ni el disco.
+  en `vfs_state+1160`. Las lecturas usan RAM; las escrituras usan ATA y
+  publican sus cambios en caché solo tras flush exitoso.
 - RAMFS tiene prioridad si ambos comparten nombre.
 - `vfs_readdir` es determinista: RAMFS en el orden de su directorio y luego PFS
   por índice de inodo; todos los nombres van separados por NUL.
-- `vfs_write` y `vfs_write_user` devuelven −30 EROFS para un fd PFS; no hay
-  `pfs_write` desde el VFS ni desde CPL3.
+- `vfs_write` y `vfs_write_user` llaman a `pfs_commit_ptr`: reemplazan archivos
+  PFS existentes de hasta 512 B; `boot.txt` devuelve EACCES (−13).
+  EFBIG (−27) rechaza tamaños excesivos y EIO (−5) informa fallos de disco.
+  Desde CPL3 se valida el buffer antes de entrar al VFS (EFAULT −14).
+  Un tamaño >4096 se rechaza primero con EINVAL (−22).
 - Sin disco (`pfs_available()==false`), `vfs_open("boot.txt")` devuelve −2 y
   `vfs_readdir` enumera solo RAMFS; el shell y `HITO 7 OK` se mantienen.
 
@@ -381,8 +392,11 @@ la transcripción nueva.
 - Sin caché de bloques ni escritura atómica: un corte entre `ata_write_sector`
   y `ata_flush` puede dejar el sector anterior o el nuevo. El checksum detecta
   un superbloque corrupto y provoca reformateo, pero no hay recuperación de
-  datos de archivos. TASK-919 añade una instantánea read-only en RAM (no una
-  caché de bloques): no se refresca si el disco cambia tras el arranque.
+  datos de archivos. TASK-919 añade una caché de archivos en RAM; TASK-924 la actualiza
+  tras reemplazos VFS exitosos. No se refresca por cambios externos al disco.
+  Ante fallo después de intentar escribir datos se invalida la caché entera.
+  Un fallo/corte puede dejar datos nuevos/parciales con el tamaño antiguo;
+  no se garantiza conservar la versión anterior ni la nueva.
 - El FS es síncrono y de un solo núcleo: no hay bloqueos porque el kernel no lo
   usa desde interrupciones ni desde varias CPU.
 - El magic se guarda como `ZENFS01` + NUL (8 bytes) para que el campo quede
@@ -394,8 +408,9 @@ la transcripción nueva.
   `-4` queda reservado para la tabla llena.
 - `pfs_list()` devuelve `0` ante ATA ausente o superbloque corrupto, porque su
   tipo es `u32`; el resto de la API usa los errores negativos.
-- Cada llamada de disco consume 512 bytes del heap de 64 KiB sin liberarlos,
-  más la instantánea de 8192 B de TASK-919. El kernel llama desde `pfs_boot()`
+- Cada llamada de la API original kernel consume 512 bytes del heap de 64 KiB sin liberarlos,
+  más la caché de 8192 B de TASK-919. El escritor de TASK-924 reutiliza
+  512 B en +4608 de la caché y no consume heap por syscall. El kernel llama desde `pfs_boot()`
   y una vez desde `pfs_export()`; los tests host hacen menos de 70 llamadas y
   quedan muy por debajo del límite.
 - Probado con QEMU (`-machine pc`, PIIX IDE). No se ha validado en hardware

@@ -25,3 +25,6 @@ pub fn test_write(address:u64,length:u64)->u64 { return user_write(address,lengt
 pub fn test_dispatch(vector:u64,error:u64,frame:u64,cr2:u64) { user_interrupt_dispatch(vector,error,frame,cr2); }
 // Host-only stub: the mock never drives COM1; syscall 8 reports "no data".
 fn serial_try_read()->i64 { return -1; }
+
+// No disk is published in this isolated host policy fixture.
+fn pfs_commit_ptr(name:u64,src:u64,len:u64,cache:u64)->i64 { return -5i64; }
