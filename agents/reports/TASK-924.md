@@ -1,7 +1,7 @@
 # TASK-924 — Reemplazo persistente desde CPL3
 
 **Responsable**: agente 08/11 (`/root/ferros_persist`).
-**Estado**: REVISION; implementación, regresión y revisión independiente verificadas; pendiente integración.
+**Estado**: COMPLETADA; integrada y revisión independiente verificada.
 **Dependencias**: TASK-916, TASK-919. **Base**: `e7737a6`.
 **Checkout aislado**: `/tmp/zenferros-task924`, rama `task-924-persist`.
 

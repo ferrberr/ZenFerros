@@ -1,7 +1,7 @@
 # TASK-925: CLI mínima de compilador Zen escrito en Zen
 
 **Agente**: 02 Frontend Zen / 03 Backend Zen
-**Estado**: EN_PROGRESO
+**Estado**: COMPLETADA
 **Prioridad**: ALTA
 **Dependencias**: [TASK-902K]
 **Archivos**: [zen/selfhost/, zen/selfhost/tests/, docs/zen/selfhost.md, agents/reports/TASK-925.md]

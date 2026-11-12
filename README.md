@@ -12,9 +12,9 @@ Ferros arranca en QEMU TCG con kernel y driver serie Zen, PMM, páginas protegid
 
 El Hito7 añade un RAMFS de 1 MiB con VFS mínimo (open/read/write/close) y syscalls de archivos 4–7. El flujo init/shell en CPL3 lista y lee `hello.zen` por VFS (`ls`/`cat`).
 
-La Fase 7 se amplía con **persistencia ATA PIO entre arranques** (`PERSIST: BOOT n`), un **mini-FS persistente ZENFS01** (`PFS: BOOT n FILES=n`, archivos de 512 B visibles por `ls`/`cat`) y se completa con un **shell interactivo por COM1**: el usuario escribe `help`, `ls`, `cat hello.zen` o `exit`; el kernel entrega los bytes con la syscall 8 y el shell usa el VFS. El runner inyecta el guion tras ver `SHELL: READY`.
+La Fase 7 se amplía con **persistencia ATA PIO entre arranques** (`PERSIST: BOOT n`), un **mini-FS persistente ZENFS01** (`PFS: BOOT n FILES=n`, archivos de 512 B visibles por `ls`/`cat`) y un **shell interactivo por COM1**. TASK-924 añade `put archivo texto`: reemplaza un archivo ZENFS01 ya existente desde CPL3 y confirma su contenido tras reiniciar QEMU. La creación desde CPL3 y la atomicidad ante corte de energía siguen pendientes. El runner inyecta el guion de aceptación tras ver `SHELL: READY`.
 
-Hito 9 (parcial) e Hito 10: once componentes del frontend/ejecución están escritos en Zen y verificados (`zen/selfhost/`: lexer contador, lexer con tokens, parser/evaluador, AST, intérprete de sentencias, intérprete con funciones, typechecker y cuatro codegens C; 166 tests), y existe una puerta única de calidad (`python3 infrastructure/scripts/verify_all.py`) con madurez y límites en [docs/quality.md](docs/quality.md).
+Hito 9 (parcial) e Hito 10: once componentes del frontend/ejecución están escritos en Zen y verificados. TASK-925 integra lexer, lowering y codegen en una CLI mínima escrita principalmente en Zen, para un subconjunto acotado de archivos reales; el compilador general sigue en Rust. Hay 174 pruebas de self-hosting y una puerta única de calidad (`python3 infrastructure/scripts/verify_all.py`) con madurez y límites en [docs/quality.md](docs/quality.md).
 
 El Hito8 añade un laboratorio de benchmarks reproducible en `benchmarks/` (Zen, C, C++ y Rust; mismo algoritmo, checksum verificado, tiempo de CPU, resultados versionados). Línea base y límites en [docs/benchmarks/results.md](docs/benchmarks/results.md); la conclusión sostenible es paridad aproximada con C/C++ en estas cargas, sin declarar superioridad y sin interpretar diferencias de pocos puntos como señal.
 
@@ -137,7 +137,7 @@ El script verifica modos normal y optimizado, ausencia de dependencias dinámica
 CARGO_HOME="$PWD/.cargo" cargo test --offline --manifest-path zen/compiler/Cargo.toml
 ```
 
-Pasan **163 pruebas del compilador** (34 unitarias, 9 arrays, 10 formatter, 8 freestanding, 10 include, 11 CLI, 12 slices, 12 stdlib, 12 stdlib_ext, 15 structs, 18 lint, 12 LSP), **44 de Ferros**, **6 de benchmarks** y **166 de self-hosting**: **379 en total**. El compilador no cambió en Hitos3–6 y se reejecutó su regresión debug. Ferros verifica políticas Zen con mocks/UBSan y QEMU real, incluyendo ELF malformado, rollback PMM, syscalls, aislamiento y faults kernel. Se repiten ambos perfiles y RAM32/128MiB. Evidencia: [hito6](agents/reports/TASK-710.md) y [revisión](agents/reports/TASK-711.md).
+La puerta exige **163 pruebas del compilador**, **45 de Ferros**, **6 de benchmarks** y **174 de self-hosting**: **388 en total**. Ferros verifica políticas Zen con mocks/UBSan y QEMU real, incluyendo ELF malformado, rollback PMM, syscalls, aislamiento y faults kernel. TASK-924 añade reemplazo persistente desde CPL3 y TASK-925 añade una CLI parcial con comparación diferencial frente al compilador Rust. Evidencia: [TASK-924](agents/reports/TASK-924.md) y [TASK-925](agents/reports/TASK-925.md).
 
 ## Documentación
 

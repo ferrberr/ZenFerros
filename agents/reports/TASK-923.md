@@ -2,6 +2,8 @@
 
 **Resultado:** documentación preparada para revisión; no se modificó código del compilador, Ferros ni infraestructura.
 
+**Integración y revisión:** el orquestador corrigió la descripción de `use "ruta.zen";` tras comparar con `zen/compiler/src/module.rs`. TASK-923 se integró en `main` y la puerta completa pasó 8/8. La especificación distingue inclusión textual de módulos reales.
+
 ## Cambios
 
 - `docs/zen/spec-mvp.md`: nueva especificación descriptiva basada en el parser/typechecker activo. Detalla unidad de compilación, expresiones y precedencia real, tipos, semántica, arrays/slices/structs, unsafe/FFI, builtins, modos y formas reconocidas por lexer pero rechazadas por el compilador.

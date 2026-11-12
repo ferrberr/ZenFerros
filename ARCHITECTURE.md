@@ -1,6 +1,6 @@
 # Arquitectura actual de Zen + Ferros
 
-Actualización: 2026-11-11. El estado se basa en código activo y evidencia de TASK-210/TASK-211, TASK-310/TASK-311, TASK-410/TASK-411, TASK-510/TASK-511, TASK-610/TASK-611, TASK-710/TASK-711 y TASK-701. Los informes anteriores describen decisiones/prototipos históricos.
+Actualización: 2026-11-12. El estado se basa en código activo y evidencia de TASK-210/TASK-211, TASK-310/TASK-311, TASK-410/TASK-411, TASK-510/TASK-511, TASK-610/TASK-611, TASK-710/TASK-711, TASK-701 y TASK-923/924/925. Los informes anteriores describen decisiones/prototipos históricos.
 
 ## Cadena implementada
 
@@ -46,11 +46,11 @@ La carpeta histórica `src/ast/`, `src/parser/` y `grammar.lalrpop` conserva bor
 | RAMFS/VFS en memoria | Integrado mínimo | `ferros/kernel/vfs.zen`; 256 bloques×4KiB, 128 inodos, open/read/write/close y errores; TASK-701 |
 | Syscalls de archivos int0x80 | Integrado mínimo | open4/read5/write6/close7 con validación de buffers; init/shell CPL3 verificado; TASK-701 |
 | Shell interactivo / COM1 RX | Integrado mínimo | `serial_try_read` (polling), syscall 8 read_char, comandos help/ls/cat/exit, inyección de stdin tras READY; TASK-703 |
-| Mini-FS persistente ZENFS01 + VFS read-only | Integrado mínimo | `storage_fs.zen` 8 archivos/512 B; `vfs.zen` sirve `ls`/`cat` desde instantánea; TASK-916/919, ADR-027/028 |
+| Mini-FS persistente ZENFS01 + VFS | Integrado mínimo | `storage_fs.zen` 8 archivos/512 B; TASK-924 añade reemplazo síncrono desde CPL3 de archivo existente y lectura tras reinicio; sin atomicidad ante corte |
 | Procesos concurrentes, IPC, otros drivers, FS montado en VFS | No implementados | Hitos posteriores |
 | Infraestructura QEMU | Integrada | QEMU11.1.3 local/TCG, timeout, logs, debug-exit y cancelación verificados |
 | Benchmarks comparativos | Integrado mínimo | `benchmarks/` 4 cargas × Zen/C/C++/Rust, checksum y CPU-time; TASK-801, ADR-013; sin perf/SIMD/floats |
-| Autohosting parcial (frontend en Zen) | Verificado | `zen/selfhost/` lexer contador y con tokens + parser/evaluador + AST + intérpretes de sentencias y funciones + typechecker + cuatro codegens C, compilados por Zen; 166 tests; ADR-014/016/023/024 |
+| Autohosting parcial (frontend y CLI mínima en Zen) | Verificado | TASK-925 integra lexer, lowering y codegen para un subconjunto de archivos reales; 174 tests; el compilador general sigue en Rust |
 | Puerta de calidad y madurez | Integrado | `verify_all.py` (8 pasos, ~47 s) y `docs/quality.md`; TASK-907/908 |
 
 Integrado significa aquí que los componentes del MVP funcionan juntos; no se declara estabilidad frente a estrés general ni optimización propia.
@@ -78,7 +78,7 @@ Builtins hosted: `print(str)`, `print_uint(u64)`, `print_int(i64)`, todos void y
 1. Hitos4–7 cerrados: memoria/IRQs, threads, ELF Zen CPL3 con syscalls/faults y VFS/RAMFS con init/shell sobre int0x80. Próximohito a decidir: VFS ampliado (varios archivos, unlink, permisos) o persistencia mínima; no introducir simultáneamente disco, SMP y rediseño de backend.
 2. Mantener semántica independiente de las opciones del compilador C. No generalizar estas pruebas a otras plataformas sin validación.
 3. Ampliar gramática y tipos incrementalmente con pruebas; AST/parser históricos requieren reconciliación antes de reutilizarse.
-4. TASK-922 inicializó Git local con el corte `e7737a6` y permite worktrees nuevos; el historial anterior no se recuperó y no hay remoto configurado. Los informes previos que afirman ausencia de Git describen sus cortes históricos.
+4. TASK-922 inicializó Git local con el corte `e7737a6` y permite worktrees nuevos; el historial anterior no se recuperó. `origin` apunta al repositorio de GitHub indicado por el usuario. Los informes previos que afirman ausencia de Git describen sus cortes históricos.
 5. QEMU11.1.3 disponible en .tools/qemu con versiones/URL/SHA256 fijados. No hay /dev/kvm; TCG verificado. No se demuestra hardware físico, UEFI/ISO ni KVM.
 6. Memoria máxima y rendimiento competitivo no han sido caracterizados; desde TASK-801 existe una línea base reproducible de cuatro cargas (CPU-time, checksum verificado, tres suites con rangos) para detectar regresiones, no un ranking de lenguajes. Sin `perf` no hay ciclos/instrucciones/caché. El pool RAMFS añade1MiB de BSS supervisora que el PMM reserva vía `ferros_kernel_end`.
 7. Punteros raw no garantizan seguridad de memoria; volatile no es atomicidad ni sincronización. Structs y arrays fijos existen (ADR-016/017) con límites declarados; no hay layout empaquetado, inline asm del lenguaje ni paso de structs entre funciones.
@@ -123,6 +123,6 @@ GDT kernel8/16, SSusuario1b, CSusuario23, TSS28/RSP0 con stack supervisor32KiB y
 
 RAMFS: pool supervisor de1MiB enBSS,256bloques de4KiB, bitmap,128inodos de64B, directorio raíz real y dos fixtures (`hello.zen`=`Hello`, `notes.txt`=`Zen\n`). VFS: `vfs_init`, `vfs_open/read/write/close` y `vfs_self_test`, con errores ENOENT−2, EBADF−9, EISDIR−21, EMFILE−24 y ENOSPC−28; descriptores en ranuras reutilizables100..115 y ruta copiada a un scratch supervisor de512B. `vfs_init` se ejecuta tras el heap y antes de entrar enCPL3; `vfs_self_test` se ejecuta tras la suite de usuario.
 
-Syscalls int0x80 añadidas sin tocar1–3: open4, read5, write6, close7, read_char8 y readdir9, con validación completa del buffer de usuario antes de cualquier copia. El flujo init/shell se ejecuta en la trayectoria válida del único ELF usuario: el bloque VFS del Hito7 más la sesión interactiva del TASK-703; `ls` enumera por syscall 9 (`hello.zen`, `notes.txt`, `boot.txt` desde ZENFS01 read-only) y `writes` total es 18. Guía `docs/ferros/filesystem.md`, evidencia TASK-701/919. Límites: sin directorios dinámicos, unlink, permisos por usuario, caché, escritura persistente ni montaje real; escrito deCPL3 no ejercitado en la aceptación.
+Syscalls int0x80 añadidas sin tocar1–3: open4, read5, write6, close7, read_char8 y readdir9, con validación del buffer de usuario antes de cada copia. El flujo init/shell se ejecuta en la trayectoria válida del único ELF usuario; `ls` enumera por syscall 9. TASK-924 habilita `put` sobre archivo ZENFS01 existente, con flush y actualización de caché tras éxito; pruebas QEMU leen el contenido exacto después de reiniciar. El guion histórico de aceptación conserva `writes=18`. Guía `docs/ferros/filesystem.md`, evidencia TASK-701/919/924. Límites: sin directorios dinámicos, unlink, creación desde CPL3, permisos por usuario reales ni atomicidad de escritura ante corte.
 
-El programa verifica CPL/flags/GPR/BSS/salida/rechazos/ENOSYS/ticks y después abre y lee `hello.zen`/`notes.txt` por VFS y enumera el directorio por readdir. Seis recargas intentan accesos/operaciones prohibidas; el kernel verifica faults y PMM restaurado y ejecuta `vfs_self_test`. 163 tests del compilador y 44 de Ferros pasan, incluyendo mocks Zen normal/O2/UBSan y QEMU real; los 6 arranques de aceptación (debug+release×3) terminan en estado33 con `HITO 7 OK`. Sin escritura persistente/journaling/IPC ni procesos concurrentes/cuotaCPU/TLS/ASLR/KPTI/estadoSIMD aislado/IST; shell interactivo verificado en TASK-703. Alcance y evidencia ADR-012, TASK-710/TASK-711, TASK-701 y TASK-703; siguiente hito: FS persistente real o VFS ampliado, a decidir en el roadmap.
+El programa verifica CPL/flags/GPR/BSS/salida/rechazos/ENOSYS/ticks y después abre y lee `hello.zen`/`notes.txt` por VFS y enumera el directorio por readdir. Seis recargas intentan accesos/operaciones prohibidas; el kernel verifica faults y PMM restaurado y ejecuta `vfs_self_test`. La puerta actual exige 163 tests del compilador y 45 de Ferros; los 6 arranques de aceptación (debug+release×3) terminan en estado33 con `HITO 7 OK`. Sin journaling/IPC ni procesos concurrentes/cuotaCPU/TLS/ASLR/KPTI/estadoSIMD aislado/IST; shell interactivo verificado en TASK-703 y escritura persistente acotada en TASK-924.

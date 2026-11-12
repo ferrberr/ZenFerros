@@ -1,6 +1,6 @@
 # TASK-925 — CLI mínima parcial del compilador en Zen
 
-**Estado**: REVISION (pendiente de integración por el orquestador).
+**Estado**: COMPLETADA (integrada y revisada por el orquestador).
 **Responsable**: agente `selfhost_cli`, roles 02 Frontend / 03 Backend.
 **Dependencia**: TASK-902K. Base Git: `e7737a6`.
 **Rama aislada**: `task-925-selfhost-cli`, clon `/tmp/zenferros-task925`.
@@ -99,11 +99,11 @@ Medición local informativa, no benchmark:
 
 ## Revisión cruzada
 
-El orquestador `/root`, distinto del autor, revisó el flujo y la suite inicial
-sin encontrar bloqueo. La revisión quedó condicionada al último diff del modo
-estricto para comparaciones ordenadas de bool; se le envió ese diff y la
-regresión de 174 tests para validación final. La integración sigue pendiente;
-no se hizo merge ni se modificó el estado de la tarea compartida.
+El orquestador `/root`, distinto del autor, revisó el flujo, las pruebas y el
+último diff del modo estricto para comparaciones ordenadas de bool. El
+entrypoint histórico conserva `strict=false`, mientras la CLI usa
+`zen_codegen_zen_subset(...,true)`; la puerta integrada pasó los 174 tests de
+self-hosting y 8/8 pasos. No se encontraron bloqueos en esta revisión.
 
 ## Riesgos y límites
 

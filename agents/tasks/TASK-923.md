@@ -1,7 +1,7 @@
 # TASK-923: Contrato implementado de Zen
 
 **Agente**: 01 Arquitecto Zen
-**Estado**: REVISION
+**Estado**: COMPLETADA
 **Prioridad**: ALTA
 **Dependencias**: [TASK-101]
 **Archivos**: [docs/zen/spec-mvp.md, docs/zen/syntax-v0.ebnf, docs/zen/mvp-native.md, agents/reports/TASK-923.md]

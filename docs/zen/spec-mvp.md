@@ -4,9 +4,11 @@
 
 ## Unidad de compilación
 
-Un archivo contiene declaraciones de `struct`, funciones y bloques `extern "C"`. No hay módulos/imports, constantes globales, aliases, implementaciones, genéricos ni atributos. Los structs se declaran antes de usarse. Las funciones pueden llamarse antes de su definición y recursivamente. Una función es `fn nombre(param: Tipo, ...) [-> Tipo] { ... }`; sin retorno explícito el retorno es `void`. `pub` se acepta ante funciones. El modo hosted exige exactamente una entrada definida `fn main() -> i32` sin parámetros. `extern "C" { fn nombre(...); }` importa símbolos; sus llamadas requieren `unsafe`.
+Un archivo contiene declaraciones de `struct`, funciones y bloques `extern "C"`. `zen build`, `zen run` y `zen check` aceptan al inicio de cada archivo `use "ruta.zen";`: el resolvedor expande los archivos como inclusión textual, sin namespaces ni sistema de módulos. No hay constantes globales, aliases, implementaciones, genéricos ni atributos. Los structs se declaran antes de usarse. Las funciones pueden llamarse antes de su definición y recursivamente. Una función es `fn nombre(param: Tipo, ...) [-> Tipo] { ... }`; sin retorno explícito el retorno es `void`. `pub` se acepta ante funciones. El modo hosted exige exactamente una entrada definida `fn main() -> i32` sin parámetros. `extern "C" { fn nombre(...); }` importa símbolos; sus llamadas requieren `unsafe`.
 
 ```ebnf
+archivo    = { use_directiva } programa ;
+use_directiva = "use" string_ruta ";" ;
 programa   = { struct_decl | ["pub"] funcion | extern_block } ;
 struct_decl= "struct" ident "{" campo { "," campo } [","] "}" ;
 campo      = ident ":" escalar ;
@@ -57,7 +59,7 @@ Siempre disponibles: `str_len(str)->u64`, `str_byte(str,u64)->u8`, `str_eq(str,s
 
 ## Sintaxis reconocida pero rechazada
 
-El lexer también reconoce `for`, `const`, `impl`, `mod`, `use`, `type`, `enum`, `match`, `loop`, `char`, floats, `null`, y tokens/sufijos más amplios. Eso no los implementa: no son producción válida del parser/comprobador MVP. También se rechazan floats, `i8/i16/i128/isize/u128/usize`, referencias, tuplas, genéricos, aliases, módulos, globals, constantes, métodos, `for`, `loop`, `match`, `enum`, `char`, `null`, `**`, funciones externas no C y constructos de la gramática propuesta.
+El lexer también reconoce `for`, `const`, `impl`, `mod`, `type`, `enum`, `match`, `loop`, `char`, floats, `null`, y tokens/sufijos más amplios. Eso no los implementa: no son producción válida del parser/comprobador MVP. `use` sí se acepta como directiva inicial de inclusión textual mediante `module::resolve`; no es una declaración del parser MVP y `fmt`/`lint`/`lsp` no la expanden. También se rechazan floats, `i8/i16/i128/isize/u128/usize`, referencias, tuplas, genéricos, aliases, módulos, globals, constantes, métodos, `for`, `loop`, `match`, `enum`, `char`, `null`, `**`, funciones externas no C y constructos de la gramática propuesta.
 
 ## Evidencia de mantenimiento
 

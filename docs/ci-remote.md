@@ -1,6 +1,6 @@
 # CI remoto — workflow de GitHub Actions (TASK-918)
 
-Fecha: 2026-11-12. Este documento describe la plantilla `.github/workflows/ci.yml`, su validación local y sus límites. **El workflow no se ha ejecutado en GitHub**: se recuperó un repositorio Git local en TASK-922, pero no hay remoto configurado. No hay evidencia de ninguna ejecución remota.
+Fecha: 2026-11-12. Este documento describe `.github/workflows/ci.yml`, su validación local y sus límites. Git local se recuperó en TASK-922 y el **remoto configurado** es `https://github.com/ferrberr/ZenFerros.git`. **El workflow no se ha ejecutado en GitHub** en el corte descrito aquí; la ejecución remota requiere comprobar sus logs y artefactos tras publicar `main`.
 
 ## Qué haría
 
@@ -28,7 +28,7 @@ Secuencia de pasos del job `matriz` (runner `ubuntu-24.04`, `timeout-minutes: 45
 
 ## Requisitos del runner
 
-- **Checkout con `.git`**: el workflow requiere publicar el repositorio Git local en un remoto de GitHub antes de poder ejecutarse allí.
+- **Checkout con `.git`**: el workflow requiere publicar `main` en el remoto configurado antes de poder ejecutarse allí.
 - **Linux x86_64** con `sudo` (los runners `ubuntu-24.04` lo tienen): GCC/`ld` de `build-essential`, QEMU de `qemu-system-x86` y Python 3.12.
 - **Rust estable** con Cargo en `PATH` (lo instala `dtolnay/rust-toolchain@stable`).
 - **Red la primera vez** para `cargo fetch` y para descargar las acciones. La matriz en sí usa `cargo test --offline`; si `.cargo` no está poblado, los pasos de Cargo fallan.
@@ -57,7 +57,7 @@ El ejemplo genérico de [`ci.md`](ci.md) dispara la matriz completa con `schedul
 ## Límites
 
 - **No se ha ejecutado en GitHub.** No hay ejecución remota, ni logs de Actions, ni artefactos reales. La única evidencia es la validación local descrita abajo.
-- **Sin remoto configurado no hay CI remoto ejecutado.** Hay un commit local inicial, pero aún no hay push, PR, webhook ni `github.sha` de una ejecución; el YAML sigue siendo una plantilla pendiente de probar en GitHub.
+- **La ejecución remota sigue pendiente de evidencia.** Hay commits locales y remoto configurado; hasta comprobar una ejecución de Actions no existe un `github.sha` asociado a logs de CI verificables.
 - **No es una atestación.** El artefacto JSON no está firmado: no hay procedencia, SBOM, firma ni cadena de suministro. Es evidencia de una ejecución, no una garantía de que el binario provenga de ese commit.
 - **No fija el toolchain exacto.** `ubuntu-24.04`, `dtolnay/rust-toolchain@stable` y los tags `@v4`/`@v5` son referencias móviles. Un cambio del runner o de Rust puede cambiar resultados sin que cambie el repositorio. Para endurecerlo, fija acciones por SHA y una versión de Rust concreta.
 - **No prueba otros hosts ni arquitecturas.** Un PASS en el runner no dice nada sobre Arch, GCC 16, QEMU 11 u otro hardware; y al revés.

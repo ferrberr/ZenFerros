@@ -29,13 +29,13 @@ Los niveles son los de [`AGENTS.md`](../AGENTS.md), aplicados de forma acumulati
 | PMM/VMM/heap, IDT/PIC/PIT | Integrado mínimo | [TASK-510](../agents/reports/TASK-510.md)/[TASK-511](../agents/reports/TASK-511.md), [memory-interrupts](ferros/memory-interrupts.md) | Identidad 64 MiB, arena sin free individual, sin IST/IRQ anidada/SMP. |
 | Threads y scheduler round-robin | Integrado mínimo | [TASK-610](../agents/reports/TASK-610.md)/[TASK-611](../agents/reports/TASK-611.md), [multitasking](ferros/multitasking.md) | Mismo address space, stacks estáticos; sin prioridades, FPU/SIMD ni SMP. |
 | ELF de usuario CPL3 e `int0x80` | Integrado mínimo | [TASK-710](../agents/reports/TASK-710.md)/[TASK-711](../agents/reports/TASK-711.md), [userspace](ferros/userspace.md) | Una invocación activa, CR3 compartido; sin `SYSCALL`, ASLR, KPTI, TLS ni cuota de CPU. |
-| RAMFS/VFS | Integrado mínimo | [TASK-701](../agents/reports/TASK-701.md), [filesystem](ferros/filesystem.md) | Volátil en memoria; sin directorios dinámicos, unlink, permisos por usuario, caché ni persistencia. |
+| RAMFS/VFS/ZENFS01 | Integrado mínimo | [TASK-701](../agents/reports/TASK-701.md), [TASK-924](../agents/reports/TASK-924.md), [filesystem](ferros/filesystem.md) | RAMFS volátil; ZENFS01 permite reemplazo síncrono de archivos existentes hasta 512 B, sin creación desde CPL3, directorios dinámicos, unlink ni atomicidad ante corte. |
 | Shell interactivo COM1 | Integrado mínimo | [TASK-703](../agents/reports/TASK-703.md), [shell](ferros/shell.md) | Polling sin IRQ serie; sin edición de línea, historial, tuberías ni teclado PS/2. |
 | Benchmarks comparativos | Integrado mínimo (línea base) | [TASK-801](../agents/reports/TASK-801.md), [TASK-802](../agents/reports/TASK-802.md), [ADR-013](../agents/decisions/ADR-013.md), [ADR-015](../agents/decisions/ADR-015.md), [results](benchmarks/results.md), [opt-flags](../benchmarks/results/opt-flags.md) | Cuatro cargas enteras; sin floats/SIMD/concurrencia ni `perf`; paridad aproximada, no ranking. `-O2` se mantiene. |
-| Componentes de self-hosting (lexer contador/tokens, parser, AST, intérprete, funciones, typechecker y cuatro codegens) | Verificado (Hito 9 parcial) | [TASK-902](../agents/reports/TASK-902.md), [TASK-902B](../agents/tasks/TASK-902B.md), [ADR-014](../agents/decisions/ADR-014.md), [selfhost](zen/selfhost.md) | No cierra self-hosting: el compilador completo sigue en Rust; hay stdlib mínima, `zen fmt` y `zen lint`; con LSP mínimo (solo diagnósticos), sin CI remoto ni stdlib amplia. |
+| Componentes de self-hosting y CLI mínima | Verificado (Hito 9 parcial) | [TASK-902](../agents/reports/TASK-902.md), [TASK-925](../agents/reports/TASK-925.md), [selfhost](zen/selfhost.md) | La CLI procesa un subconjunto acotado; el compilador completo sigue en Rust y no se compila a sí mismo. |
 | Gramática completa | Experimental (propuesta) | [syntax-v0.ebnf](zen/syntax-v0.ebnf) | Borrador no conectado al parser ni equivalente a lo implementado. |
 
-Fuera de la escala (no implementado, se rechaza o no existe): structs con métodos/paso entre funciones, floats, ownership/borrowing, módulos, inline asm del lenguaje, stdlib amplia (hay builtins de strings y slices), IPC, procesos concurrentes, drivers de bloque avanzados/VirtIO, escritura persistente/journaling, SMP, `SYSCALL/SYSRET`, ASLR/KPTI y LSP avanzado (existe LSP mínimo de diagnósticos, ADR-022). (Arrays fijos y structs escalares sí existen, TASK-213/214; formatter, linter y LSP mínimo existen, TASK-904A/909/910.)
+Fuera de la escala (no implementado, se rechaza o no existe): structs con métodos/paso entre funciones, floats, ownership/borrowing, módulos reales, inline asm del lenguaje, stdlib amplia, IPC, procesos concurrentes, VirtIO, creación persistente desde CPL3/journaling, SMP, `SYSCALL/SYSRET`, ASLR/KPTI y LSP avanzado. Arrays fijos, structs escalares, inclusión textual `use`, formatter, linter y LSP mínimo sí existen.
 
 ## Estrés y fuzzing
 
@@ -43,17 +43,17 @@ Fuera de la escala (no implementado, se rechaza o no existe): structs con métod
 
 ## Puertas de calidad
 
-`verify_all.py` ejecuta estos pasos en orden, **comprueba el número de tests esperado de cada suite** (163/44/6/166) y **aborta en el primero que falla**. Si un filtro reduce la cobertura sin cambiar el exit code, la puerta falla; actualizar `EXPECTED_COUNTS` solo cuando el cambio de cobertura sea intencionado. El paso 7 es obligatorio desde que el autohosting parcial forma parte del repo.
+`verify_all.py` ejecuta estos pasos en orden, **comprueba el número de tests esperado de cada suite** (163/45/6/174) y **aborta en el primero que falla**. Si un filtro reduce la cobertura sin cambiar el exit code, la puerta falla; actualizar `EXPECTED_COUNTS` solo cuando el cambio de cobertura sea intencionado. El paso 7 es obligatorio desde que el autohosting parcial forma parte del repo.
 
 | # | Puerta | Cobertura | Timeout |
 |---|---|---|---|
 | 1 | `cargo build --release --offline` | Compilador Zen compila con `CARGO_HOME=.cargo`. | 600 s |
 | 2 | `cargo test --release --offline` | 163 tests: 34 unitarios + 9 arrays + 10 fmt + 8 freestanding + 10 include + 11 native + 12 slices + 12 stdlib + 12 stdlib_ext + 15 structs + 18 lint + 12 LSP. | 600 s |
-| 3 | `python3 -m unittest discover -s ferros/tests` | 44 tests de Ferros: host con mocks y UBSan, más guests QEMU (incluidos caminos negativos y sin entrada). | 900 s |
+| 3 | `python3 -m unittest discover -s ferros/tests` | 45 tests de Ferros: host con mocks y UBSan, más guests QEMU (incluido reemplazo persistente desde CPL3). | 900 s |
 | 4 | `python3 -m unittest discover -s benchmarks/tests` | 6 tests del arnés: paridad, estadísticas y aborto por checksum. | 300 s |
 | 5 | `python3 infrastructure/scripts/boot_ferros.py --all --repeat 1` | Aceptación QEMU: 2 arranques (debug+release), estado 33, transcripción exacta del shell, `writes=18`. Con `--full`: `--repeat 3` → 6 arranques. | 900 s |
 | 6 | `python3 benchmarks/scripts/bench.py --reps 3 --warmup 1 --json <tmp> --md <tmp>` | 4 cargas × 4 lenguajes, checksum verificado antes de medir. | 900 s |
-| 7 | `python3 -m unittest discover -s zen/selfhost/tests` | 166 tests de self-hosting parcial: lexer contador y con tokens, parser/evaluador, AST, intérprete de sentencias, intérprete con funciones, typechecker y cuatro codegens C (TASK-902/902B/902C/902D/902E/902F/902G/902H/902I/902J/902K). No implica compilador completo. | 300 s |
+| 7 | `python3 -m unittest discover -s zen/selfhost/tests` | 174 tests: 166 de componentes y 8 de la CLI mínima TASK-925, con comparación diferencial de archivos reales. No implica compilador completo. | 300 s |
 | 8 | `python3 infrastructure/scripts/repro_build.py --quick` (completo con `--full`) | Dos builds de C generado y `ferros-user.elf` (y kernel en `--full`) con hashes idénticos; manifiesto de toolchain. | 300 s |
 
 Modos:
@@ -74,12 +74,12 @@ Notas de la puerta:
 
 - **Hardware físico, KVM y UEFI/ISO**: todo se ejecuta en QEMU TCG (`-smp 1`, Multiboot1 directo). No hay `/dev/kvm`, ni arranque en metal, ni ISO/UEFI (TASK-410/411).
 - **SMP y concurrencia real**: un solo CPU, sin IRQ anidadas, IST, `swapgs`, barreras ni sincronización; `volatile` no es atomicidad.
-- **Persistencia**: RAMFS es volátil; hay ATA PIO con contador (TASK-914), mini-FS ZENFS01 (TASK-916) y PFS visible en VFS **read-only** (TASK-919), pero sin escritura persistente, journaling ni VirtIO; el contenido de usuario no persiste.
+- **Persistencia**: RAMFS es volátil; ZENFS01 permite reemplazar desde CPL3 un archivo existente hasta 512 B y leerlo tras reiniciar (TASK-924). No hay creación/borrado desde CPL3, journaling, atomicidad ante corte ni VirtIO.
 - **Self-hosting completo**: el compilador sigue escrito en Rust; TASK-902/902B/902C/902D/902E/902F/902G/902H/902I/902J/902K verifican once componentes (lexer contador, lexer con tokens, evaluador, AST, intérprete de sentencias, intérprete con funciones, typechecker y cuatro codegens) por comportamiento, no un compilador completo. Hay stdlib mínima de strings (ADR-019), formatter `zen fmt` (ADR-020), linter `zen lint` con JSON (ADR-021) y LSP mínimo `zen lsp` (ADR-022); no hay CI remoto, stdlib amplia ni bootstrap del compilador en Zen.
 - **Floats, SIMD y concurrencia en benchmarks**: el lenguaje no tiene floats/SIMD; las cargas son enteras. Sin `perf` no hay ciclos, instrucciones ni fallos de caché, y el host es compartido (TASK-801).
 - **Estabilidad y seguridad**: TASK-905 aporta campañas acotadas y fuzz diferencial; siguen faltando estrés prolongado, inyección de fallos a escala, fuzzing guiado por cobertura y auditoría formal. El heap no libera de forma general y el scheduler es de un solo uso.
 - **Aislamiento completo de procesos**: CR3 compartido con el kernel, sin ASLR/KPTI/TLS/estado SIMD aislado; el loader ignora section headers y no relocaliza.
-- **Procedencia reproducible**: TASK-922 creó un historial Git local a partir del corte `e7737a6`; los cortes anteriores siguen sin historial recuperable. La puerta es local: no hay remoto ni ejecución de CI en GitHub y no se fija un contenedor de build.
+- **Procedencia reproducible**: TASK-922 creó un historial Git local a partir del corte `e7737a6`; los cortes anteriores siguen sin historial recuperable. Hay remoto configurado, pero esta puerta es local y todavía no aporta evidencia de una ejecución de CI en GitHub ni fija un contenedor de build.
 
 ## Reproducción
 

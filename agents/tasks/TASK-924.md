@@ -1,7 +1,7 @@
 # TASK-924: Escritura persistente desde CPL3
 
 **Agente**: 08 Kernel Memory / 11 Filesystems
-**Estado**: REVISION
+**Estado**: COMPLETADA
 **Prioridad**: ALTA
 **Dependencias**: [TASK-916, TASK-919]
 **Archivos**: [ferros/kernel/storage_fs.zen, ferros/kernel/vfs.zen, ferros/user/main.zen, ferros/tests/test_pfs_vfs.py, ferros/tests/test_pfs.py, ferros/tests/fixtures/user_mock.c, ferros/tests/fixtures/user_test_api.zen, ferros/tests/fixtures/vfs_test_support.zen, docs/ferros/filesystem.md, docs/ferros/persistence.md, agents/tasks/TASK-924.md, agents/reports/TASK-924.md]

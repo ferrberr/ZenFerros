@@ -42,9 +42,9 @@ SELFHOST_TESTS = ROOT / "zen/selfhost/tests"
 # la cobertura sin que el exit code lo delate).
 EXPECTED_COUNTS = {
     2: 163,   # 34 unit + 9 arrays + 10 fmt + 8 freestanding + 10 include + 11 native + 12 stdlib + 12 stdlib_ext + 12 slices + 15 structs + 18 lint + 12 lsp
-    3: 44,   # Ferros (persistencia ATA + mini-FS + PFS en VFS)
+    3: 45,   # Ferros (escritura PFS desde CPL3, TASK-924)
     4: 6,    # benchmarks
-    7: 166,   # lexer (7) + parser (7) + AST (14) + tokens (11) + interp (16) + funciones (22) + typecheck (16) + codegen (16) + codegen_fns (18) + codegen_arrays (20) + codegen_structs (19)
+    7: 174,   # 166 componentes anteriores + 8 tests de CLI selfhost parcial (TASK-925)
 }
 COUNT_PATTERN = re.compile(r"Ran (\d+) tests?")
 CARGO_COUNT_PATTERN = re.compile(r"test result: ok\. (\d+) passed")

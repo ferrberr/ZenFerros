@@ -1,6 +1,15 @@
 # STATE.md — resumen operativo (actualizar, no duplicar)
 
-Actualizado: 2026-11-12 (ronda 12, cierre de objetivo) · Hitos 1–8 cerrados; Hito 9 parcial, Hito 10 documentado, Fase 9 parcial.
+Actualizado: 2026-11-12 (TASK-922–925) · Hitos 1–8 cerrados; Hito 9 parcial con CLI mínima, Hito 10 documentado, Fase 9 parcial.
+
+## Corte actual
+- Git local `main` recuperado desde `e7737a6`; remoto `origin` configurado, CI remoto pendiente de ejecución confirmada.
+- TASK-923: contrato del subconjunto implementado en `docs/zen/spec-mvp.md`, incluida la directiva textual `use`.
+- TASK-924: reemplazo ZENFS01 desde CPL3 y lectura exacta tras reinicio QEMU; creación desde CPL3/atomicidad pendientes.
+- TASK-925: CLI mínima escrita principalmente en Zen, archivo fuente→C11, con comparación diferencial frente a Rust; autohosting completo pendiente.
+- Puerta integrada: 8/8 PASS en 59,63 s; 163/45/6/174 = 388 pruebas, 6/6 QEMU y reproducibilidad PASS. Logs: `/tmp/zenferros-verify-c9snl2ng`.
+
+Los conteos y brechas de la ronda 12 descritos a continuación son el corte histórico anterior a TASK-922–925.
 
 ## Dónde estamos
 - **Zen**: compilador Rust→C11 (`zen/compiler`), suite **163 tests** (arrays TASK-213, structs TASK-214, slices TASK-915); benchmarks Hito 8 (6 tests); selfhost **166 tests** (once componentes).
@@ -65,4 +74,4 @@ SHELL: DONE
 ## Riesgos activos
 - El FIFO serie se limpia en `serial_init`; el runner debe inyectar la entrada **tras** ver `SHELL: READY` (no al arrancar).
 - Cambiar la serie esperada afecta a tests negativos y a `writes=18` con el guion → revisar todas las aserciones.
-- TASK-922 creó Git local (`e7737a6`) y worktrees aislados para los nuevos agentes; sin remoto configurado ni historial anterior al corte.
+- TASK-922 creó Git local (`e7737a6`) y clones aislados para los nuevos agentes; `origin` configurado después, sin historial anterior al corte.
