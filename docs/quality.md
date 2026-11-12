@@ -79,7 +79,7 @@ Notas de la puerta:
 - **Floats, SIMD y concurrencia en benchmarks**: el lenguaje no tiene floats/SIMD; las cargas son enteras. Sin `perf` no hay ciclos, instrucciones ni fallos de caché, y el host es compartido (TASK-801).
 - **Estabilidad y seguridad**: TASK-905 aporta campañas acotadas y fuzz diferencial; siguen faltando estrés prolongado, inyección de fallos a escala, fuzzing guiado por cobertura y auditoría formal. El heap no libera de forma general y el scheduler es de un solo uso.
 - **Aislamiento completo de procesos**: CR3 compartido con el kernel, sin ASLR/KPTI/TLS/estado SIMD aislado; el loader ignora section headers y no relocaliza.
-- **Procedencia reproducible**: TASK-922 creó un historial Git local a partir del corte `e7737a6`; los cortes anteriores siguen sin historial recuperable. Hay remoto configurado, pero esta puerta es local y todavía no aporta evidencia de una ejecución de CI en GitHub ni fija un contenedor de build.
+- **Procedencia reproducible**: TASK-922 creó un historial Git local desde `e7737a6`; los cortes anteriores siguen sin historial recuperable. El [primer CI remoto](https://github.com/ferrberr/ZenFerros/actions/runs/43195298356) pasó sobre `d39f268` y publicó JSON/logs; la puerta local sigue sin fijar un contenedor de build ni producir una atestación firmada.
 
 ## Reproducción
 

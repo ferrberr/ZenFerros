@@ -79,7 +79,7 @@ SECRET_PATTERNS = [
 # Frases que docs/ci-remote.md debe contener; cada entrada admite variantes.
 DOC_REQUIRED = {
     "comando de validacion": ("check_ci_workflow.py",),
-    "aviso de no ejecucion": ("no se ha ejecutado",),
+    "estado de ejecucion": ("primera ejecución remota verificada",),
     "remoto configurado": ("remoto configurado",),
     "no es atestacion": ("no es una atestación", "no es una atestacion", "no constituye una atestación"),
     "requisitos": ("requisitos",),
@@ -506,7 +506,7 @@ def check_doc(checks: list[Check], doc_path: Path, root: Path) -> None:
     add(
         checks,
         "doc-secciones",
-        "el doc declara comando, no ejecucion, estado remoto, limites y validacion",
+        "el doc declara comando, ejecucion, estado remoto, limites y validacion",
         not missing,
         "faltan: " + ", ".join(missing) if missing else "todas las secciones presentes",
     )

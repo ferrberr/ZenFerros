@@ -2,7 +2,7 @@
 
 ## Estado a 2026-11-11 — Hito7 cerrado (DSH)
 
-Actualización operativa 2026-11-12: TASK-922 creó Git local desde `e7737a6` y se configuró el remoto indicado; la ejecución de CI en GitHub aún debe confirmarse. TASK-923/924/925 se integraron y pasaron la puerta completa (388 tests). Los párrafos de estado anteriores son históricos; el corte actual está en `agents/STATE.md`.
+Actualización operativa 2026-11-12: TASK-922 creó Git local desde `e7737a6` y el [primer CI de GitHub](https://github.com/ferrberr/ZenFerros/actions/runs/43195298356) pasó con artefactos. TASK-923/924/925 se integraron y pasaron la puerta completa (388 tests). Los párrafos de estado anteriores son históricos; el corte actual está en `agents/STATE.md`.
 
 **Hito 1: completado y verificado** mediante TASK-210 y revisión cruzada TASK-211. La ruta implementada es Zen → frontend comprobado → C11 → cc → ELF, decisión ADR-007. **Hito 2: verificado** en TASK-310/TASK-311: objeto ELF64 freestanding sin libc, ABI C, bits/casts y punteros volatile/unsafe. **Hito 3: verificado** mediante TASK-410/TASK-411: kernel Zen y UART, bootstrap64 mínimo, 6 boots TCG con serie exacta y estado33. **Hito4: verificado** TASK-510/TASK-511, PMM/VMM/heap/excepciones/PIT con memoria/IRQs en Zen. El subconjunto nativo vigente está en `docs/zen/mvp-native.md`; la gramática completa sigue siendo propuesta.
 

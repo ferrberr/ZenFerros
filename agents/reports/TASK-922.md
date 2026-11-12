@@ -1,6 +1,6 @@
 # TASK-922 — Git y CI reproducible
 
-Fecha: 2026-11-12. Responsable: agente 00. Estado: en progreso; ejecución remota pendiente.
+Fecha: 2026-11-12. Responsable: agente 00. Estado: completada; primera ejecución remota verificada.
 
 ## Cambios
 
@@ -22,11 +22,13 @@ Fecha: 2026-11-12. Responsable: agente 00. Estado: en progreso; ejecución remot
 | `python3 infrastructure/scripts/ci_matrix.py --quick --json /tmp/zenferros-task922-ci.json` | 4/4 PASS, 1m 26,5 s |
 | `git ls-remote https://github.com/ferrberr/ZenFerros` | Código 0, sin refs antes de publicar |
 | `python3 infrastructure/scripts/verify_all.py --full` tras integrar TASK-923/924/925 | 8/8 PASS, 59,63 s; 163/45/6/174 = 388 pruebas; 6 QEMU; reproducibilidad PASS |
+| `GIT_SSH_COMMAND='ssh -o BatchMode=yes' git push -u origin main` | PASS, `main` publicado en `github.com:ferrberr/ZenFerros.git` |
+| GitHub Actions run `43195298356` (push `d39f2686838f8113f707c90335c550f13d50e6f6`) | Job `Matriz ZenFerros` completado con `success`; artefactos `ci-matrix-json` (2039 B) y `ci-matrix-logs` (14868 B) publicados |
 
 Logs de la matriz: `/tmp/zenferros-ci-jhkjdn67`. JSON: `/tmp/zenferros-task922-ci.json`. Logs del gate integrado: `/tmp/zenferros-verify-c9snl2ng`.
 
 ## Riesgos y pendientes
 
 - Git identifica solo este corte y cambios posteriores, no los commits anteriores citados en informes históricos.
-- El usuario indicó `https://github.com/ferrberr/ZenFerros`; `git ls-remote` no devolvió refs y se configuró como `origin`. Hasta comprobar un run de Actions no se puede demostrar el CI remoto.
+- El usuario indicó `https://github.com/ferrberr/ZenFerros`; `git ls-remote` no devolvió refs antes del push. HTTPS no encontró credenciales locales; SSH sí autenticó y publicó la rama. [Run remoto verificado](https://github.com/ferrberr/ZenFerros/actions/runs/43195298356).
 - La matriz local usa este host y su toolchain; una ejecución remota debe comprobarse por separado.

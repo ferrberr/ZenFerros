@@ -1,6 +1,6 @@
 # CI remoto — workflow de GitHub Actions (TASK-918)
 
-Fecha: 2026-11-12. Este documento describe `.github/workflows/ci.yml`, su validación local y sus límites. Git local se recuperó en TASK-922 y el **remoto configurado** es `https://github.com/ferrberr/ZenFerros.git`. **El workflow no se ha ejecutado en GitHub** en el corte descrito aquí; la ejecución remota requiere comprobar sus logs y artefactos tras publicar `main`.
+Fecha: 2026-11-12. Este documento describe `.github/workflows/ci.yml`, su validación local y sus límites. Git local se recuperó en TASK-922 y el **remoto configurado** es `git@github.com:ferrberr/ZenFerros.git`. El primer [run de GitHub Actions](https://github.com/ferrberr/ZenFerros/actions/runs/43195298356), sobre `d39f268`, terminó con **success** y publicó `ci-matrix-json` y `ci-matrix-logs`. Los párrafos históricos de abajo describen la plantilla antes de su primera ejecución.
 
 ## Qué haría
 
@@ -56,8 +56,8 @@ El ejemplo genérico de [`ci.md`](ci.md) dispara la matriz completa con `schedul
 
 ## Límites
 
-- **No se ha ejecutado en GitHub.** No hay ejecución remota, ni logs de Actions, ni artefactos reales. La única evidencia es la validación local descrita abajo.
-- **La ejecución remota sigue pendiente de evidencia.** Hay commits locales y remoto configurado; hasta comprobar una ejecución de Actions no existe un `github.sha` asociado a logs de CI verificables.
+- **Alcance de la ejecución**: el primer run remoto pasó sobre `d39f268` y publicó logs y JSON; no equivale a una campaña en varios runners o toolchains. La validación local de abajo solo comprueba la estructura del workflow.
+- **Primera ejecución remota verificada.** El push de `d39f268` a `main` produjo el run `43195298356`, job `Matriz ZenFerros` con `success` y dos artefactos publicados. Véase TASK-922 para comandos y tamaños.
 - **No es una atestación.** El artefacto JSON no está firmado: no hay procedencia, SBOM, firma ni cadena de suministro. Es evidencia de una ejecución, no una garantía de que el binario provenga de ese commit.
 - **No fija el toolchain exacto.** `ubuntu-24.04`, `dtolnay/rust-toolchain@stable` y los tags `@v4`/`@v5` son referencias móviles. Un cambio del runner o de Rust puede cambiar resultados sin que cambie el repositorio. Para endurecerlo, fija acciones por SHA y una versión de Rust concreta.
 - **No prueba otros hosts ni arquitecturas.** Un PASS en el runner no dice nada sobre Arch, GCC 16, QEMU 11 u otro hardware; y al revés.
