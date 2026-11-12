@@ -2,16 +2,6 @@
 
 Ferros combina RAMFS con archivos persistentes de hasta 512 B. ZENFS02 conserva los discos ZENFS01 mediante migración automática y permite crear o reemplazar desde CPL3 con `put`. Cada archivo ocupa un sector; hay ocho entradas y un sector libre para el commit copy-on-write. `boot.txt` queda reservado al kernel. La garantía de recuperación se limita a los fallos y sectores rasgados simulados; véase [persistencia](persistence.md).
 
-# RAMFS, VFS y ZENFS01 — TASK-919 / TASK-924
-
-Ferros incorpora un sistema de archivos en memoria de alcance mínimo y, desde
-TASK-919, expone también los archivos persistentes de ZENFS01 a través del
-mismo VFS. TASK-924 permite reemplazar archivos persistentes existentes desde
-CPL3 mediante la syscall 6. RAMFS mantiene su semántica de append y sus
-permisos 0644; ZENFS01 ofrece reemplazo completo y síncrono de hasta 512 B.
-No hay montaje real, creación desde CPL3, journaling ni atomicidad frente a
-cortes de energía. `boot.txt` está reservado al kernel.
-
 ## RAMFS
 
 - Pool supervisor de 1 MiB en BSS (`__ferros_ramfs_storage`), 256 bloques de 4 KiB.

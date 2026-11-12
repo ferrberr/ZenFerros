@@ -1,15 +1,21 @@
 # STATE.md — resumen operativo (actualizar, no duplicar)
 
-Actualizado: 2026-11-12 (TASK-922–925) · Hitos 1–8 cerrados; Hito 9 parcial con CLI mínima, Hito 10 documentado, Fase 9 parcial.
+Actualizado: 2026-11-12 (TASK-926–929) · Hitos 1–8 cerrados; Hito 9 parcial con CLI mínima, Hito 10 documentado, Fase 9 parcial.
 
 ## Corte actual
 - Git local `main` recuperado desde `e7737a6`; `origin` configurado por SSH, [primer CI remoto](https://github.com/ferrberr/ZenFerros/actions/runs/43195298356) `success` con JSON y logs.
 - TASK-923: contrato del subconjunto implementado en `docs/zen/spec-mvp.md`, incluida la directiva textual `use`.
-- TASK-924: reemplazo ZENFS01 desde CPL3 y lectura exacta tras reinicio QEMU; creación desde CPL3/atomicidad pendientes.
+- TASK-924 fue la base de reemplazo v1; TASK-926–929 añaden creación y recuperación ZENFS02.
 - TASK-925: CLI mínima escrita principalmente en Zen, archivo fuente→C11, con comparación diferencial frente a Rust; autohosting completo pendiente.
 - Puerta integrada: 8/8 PASS en 59,63 s; 163/45/6/174 = 388 pruebas, 6/6 QEMU y reproducibilidad PASS. Logs: `/tmp/zenferros-verify-c9snl2ng`.
 
 Los conteos y brechas de la ronda 12 descritos a continuación son el corte histórico anterior a TASK-922–925.
+
+## Corte ZENFS02 (TASK-926–929)
+- ADR-029 fija raíces 33–34, tablas 35–36, datos 37–45 y marca 46. ZENFS01 en LBA 16–32 queda intacto durante y después de la migración.
+- `open(path,1)` crea descriptor pendiente; `write` confirma nombre y bytes y `close` sin escritura descarta. `put` crea o reemplaza, con ocho archivos de 512 B y `boot.txt` protegido.
+- Mock ATA cubre fallos de comando, flush y sectores rasgados en datos/tabla/raíz/marca; QEMU debug/release comprueba creación, reemplazo y reinicios. Estado definitivo de puerta/CI en `agents/reports/TASK-929.md`.
+- Garantía limitada al modelo probado y al orden de `ata_flush`, sin afirmación sobre hardware físico.
 
 ## Dónde estamos
 - **Zen**: compilador Rust→C11 (`zen/compiler`), suite **163 tests** (arrays TASK-213, structs TASK-214, slices TASK-915); benchmarks Hito 8 (6 tests); selfhost **166 tests** (once componentes).
@@ -42,7 +48,7 @@ boot.txt
 SHELL> cat hello.zen
 Hello
 SHELL> help
-commands: help ls cat exit
+commands: help ls cat put exit
 SHELL> exit
 SHELL: DONE
 ```

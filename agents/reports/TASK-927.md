@@ -1,6 +1,6 @@
 # TASK-927 — ZENFS02 storage and migration
 
-Estado: REVISION. Autor: /root/storage_recovery; revisor independiente: /root.
+Estado: COMPLETADA. Autor: /root/storage_recovery; revisor independiente: /root.
 
 ## Cambios
 
@@ -18,4 +18,5 @@ Estado: REVISION. Autor: /root/storage_recovery; revisor independiente: /root.
 ## Métricas y riesgos
 
 - 1 archivo de código modificado; formato fijo de 8 archivos × 512 B, 9 sectores de datos, scratch de 3584 B por montaje/operación de kernel. No hay durabilidad afirmada para hardware físico; depende de `ata_flush` y del modelo de fallos del mock.
-- Falta integración QEMU y CI remoto, a cargo de TASK-929. El fallo de marcador en blanco antes de una raíz válida puede exigir intervención manual si el formato parcialmente escrito se reconoce como corrupto; la ruta de migración v1 sí reintenta sin alterar v1.
+- La revisión independiente de /root comprobó elección de generación, sector libre, hashes, orden de flush y preservación de v1. `python3 -m unittest ferros.tests.test_pfs_vfs ferros.tests.test_pfs.PfsGuestTests` → 4/4 QEMU OK; puerta `--full` → 8/8 PASS, 390 tests, 66,9 s (logs `/tmp/zenferros-verify-lr1oy1f4`). CI remoto se registra en TASK-929.
+- Un fallo durante la inicialización de un disco en blanco antes de una raíz válida puede requerir intervención si deja un formato reconocible corrupto; la ruta de migración v1 sí reintenta sin alterar v1. Sin garantía para hardware físico.

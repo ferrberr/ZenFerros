@@ -42,7 +42,7 @@ SELFHOST_TESTS = ROOT / "zen/selfhost/tests"
 # la cobertura sin que el exit code lo delate).
 EXPECTED_COUNTS = {
     2: 163,   # 34 unit + 9 arrays + 10 fmt + 8 freestanding + 10 include + 11 native + 12 stdlib + 12 stdlib_ext + 12 slices + 15 structs + 18 lint + 12 lsp
-    3: 45,   # Ferros (escritura PFS desde CPL3, TASK-924)
+    3: 47,   # Ferros (ZENFS02, creación y recuperación, TASK-929)
     4: 6,    # benchmarks
     7: 174,   # 166 componentes anteriores + 8 tests de CLI selfhost parcial (TASK-925)
 }
