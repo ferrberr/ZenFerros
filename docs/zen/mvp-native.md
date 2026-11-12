@@ -1,5 +1,7 @@
 # Zen nativo v0.1: subconjunto ejecutable
 
+> Referencia normativa actual: [spec-mvp.md](spec-mvp.md). Este documento conserva ejemplos y notas históricas; ante cualquier diferencia prevalece la especificación vinculada al código activo. La gramática de diseño `syntax-v0.ebnf` no describe exactamente el parser implementado.
+
 ## Plataforma y cadena
 
 El primer compilador verificable usa Rust para el frontend, C11 como representación intermedia y `cc` para generar/enlazar ELF en Linux x86_64. No requiere LLVM ni Cranelift. Es un bootstrap: no demuestra self-hosting, freestanding ni rendimiento competitivo. El código de AST/parser anterior en `src/ast/` y `src/parser/` se conserva como borrador histórico sin compilar; `src/mvp.rs` es el parser y comprobador activo. `grammar.lalrpop` no se genera ni se usa.

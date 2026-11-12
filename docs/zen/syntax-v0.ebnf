@@ -1,4 +1,8 @@
-(* Gramática Zen MVP v0.1 — Notación EBNF extendida *)
+(* PROPUESTA HISTÓRICA — No es la gramática implementada por el compilador MVP.
+   Referencia del subconjunto ejecutable vigente: docs/zen/spec-mvp.md.
+   Este borrador contiene constructos planeados o reconocidos solo por el lexer;
+   su presencia aquí no implica soporte de compilación. *)
+(* Gramática Zen v0 — Notación EBNF extendida *)
 (* Diseño: Agente 01 (Arquitecto Zen) — Revisión: Agente 02 (Frontend) *)
 
 (* ============================================================
