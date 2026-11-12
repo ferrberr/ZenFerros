@@ -31,5 +31,4 @@ Diff, comandos, salidas, métricas, riesgos y revisión en informe.
 
 ## Evidencia
 
-`agents/reports/TASK-924.md`. Código revisado independientemente por /root sin bloqueos; pendiente
-integración por el orquestador, sin merge realizado por el autor.
+`agents/reports/TASK-924.md`. Código revisado independientemente por /root sin bloqueos e integrado en `main` antes de TASK-926.
