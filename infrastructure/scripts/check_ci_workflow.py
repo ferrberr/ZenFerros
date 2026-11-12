@@ -80,7 +80,7 @@ SECRET_PATTERNS = [
 DOC_REQUIRED = {
     "comando de validacion": ("check_ci_workflow.py",),
     "aviso de no ejecucion": ("no se ha ejecutado",),
-    "sin .git": ("sin `.git`", "sin .git"),
+    "sin remoto": ("sin remoto", "no hay remoto"),
     "no es atestacion": ("no es una atestación", "no es una atestacion", "no constituye una atestación"),
     "requisitos": ("requisitos",),
     "diferencias local/remoto": ("diferencia",),
@@ -506,7 +506,7 @@ def check_doc(checks: list[Check], doc_path: Path, root: Path) -> None:
     add(
         checks,
         "doc-secciones",
-        "el doc declara comando, no ejecucion, sin .git, limites y validacion",
+        "el doc declara comando, no ejecucion, sin remoto, limites y validacion",
         not missing,
         "faltan: " + ", ".join(missing) if missing else "todas las secciones presentes",
     )

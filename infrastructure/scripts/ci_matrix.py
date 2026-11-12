@@ -69,7 +69,7 @@ LIMITS = [
     "No es CI remoto: se ejecuta en este host, con su carga, su reloj y su toolchain.",
     "No usa contenedores ni una imagen o toolchain fijados; el PASS describe este host.",
     "No demuestra nada sobre otros hosts, distros, CPUs, versiones de GCC/ld/Rust o hardware fisico.",
-    "No es una atestacion de procedencia: sin .git no hay commit, firma ni cadena de suministro.",
+    "No es una atestacion de procedencia: el commit local no aporta firma ni cadena de suministro.",
     "No fija umbrales de rendimiento: mide duracion de los pasos, no rendimiento del lenguaje.",
     "Los timeouts evitan cuelgues, no son un presupuesto de rendimiento ni un SLA.",
     "No sustituye a verify_all.py, stress.py ni repro_build.py: los compone en una matriz.",

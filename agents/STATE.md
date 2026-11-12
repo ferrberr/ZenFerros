@@ -65,4 +65,4 @@ SHELL: DONE
 ## Riesgos activos
 - El FIFO serie se limpia en `serial_init`; el runner debe inyectar la entrada **tras** ver `SHELL: READY` (no al arrancar).
 - Cambiar la serie esperada afecta a tests negativos y a `writes=18` con el guion → revisar todas las aserciones.
-- Sin `.git`: no hay worktrees; aislamiento por propiedad de archivos y builds en directorios privados (/tmp).
+- TASK-922 creó Git local (`e7737a6`) y worktrees aislados para los nuevos agentes; sin remoto configurado ni historial anterior al corte.

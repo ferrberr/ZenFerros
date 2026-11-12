@@ -159,7 +159,7 @@ Campos relevantes: `result` (`PASS`, `FAIL` o `INTERRUPTED`), `failed_step` (nú
 - **No es CI remoto.** No hay servidor, cola, webhooks ni ejecución en la nube: se lanza a mano en este host y describe este host.
 - **No usa contenedores** ni una imagen o toolchain fijados. `cc`, `ld`, `rustc`, Cargo y QEMU son los del sistema; el script solo registra sus versiones.
 - **No demuestra nada sobre otros hosts.** Otro CPU, distro, glibc, GCC, binutils, Rust o QEMU pueden cambiar tiempos y resultados. Un `PASS` aquí no es un `PASS` universal.
-- **No es una atestación de procedencia.** El repositorio no tiene `.git`: no hay commit, firma, SBOM ni cadena de suministro. Los hashes de `repro_build` son evidencia local, no una firma.
+- **No es una atestación de procedencia.** El commit Git local identifica las entradas, pero no aporta firma, SBOM ni cadena de suministro. Los hashes de `repro_build` son evidencia local, no una firma.
 - **No fija umbrales de rendimiento.** Mide duración de pasos para detectar cuelgues; no compara el rendimiento de Zen con C ni declara un subsistema «Optimizado».
 - **No provisiona el entorno.** Requiere un registro offline de Cargo en `.cargo/`, `cc`/`ld` del sistema y QEMU local (`.tools/qemu`) o en `PATH`. Sin ellos, los pasos que los usan fallan; la matriz no los instala.
 - **No sustituye a las puertas.** `verify_all.py` sigue siendo la puerta de calidad, `stress.py` la campaña de estabilidad y `repro_build.py` la evidencia de reproducibilidad. La matriz solo las compone.
@@ -169,7 +169,7 @@ Campos relevantes: `result` (`PASS`, `FAIL` o `INTERRUPTED`), `failed_step` (nú
 
 ## Integración en un CI externo (ejemplo genérico)
 
-La matriz se puede invocar desde un CI externo, pero el runner debe provisionar lo que este host ya tiene: checkout con `.git`, toolchain de Rust, `cc`/`ld`, Python 3, QEMU y el registro offline de Cargo. Este repo local no tiene `.git`, así que el YAML es una plantilla para un espejo o una copia versionada; ajústalo al sistema del runner.
+La matriz se puede invocar desde un CI externo, pero el runner debe provisionar lo que este host ya tiene: checkout con `.git`, toolchain de Rust, `cc`/`ld`, Python 3, QEMU y el registro offline de Cargo. Este repo tiene un commit local desde TASK-922; falta un remoto y una ejecución del workflow. Ajusta la plantilla al sistema del runner.
 
 ```yaml
 name: zenferros-ci
