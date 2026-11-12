@@ -1,7 +1,7 @@
 # TASK-927: Almacenamiento y migración ZENFS02
 
 **Agente**: 11 Filesystems
-**Estado**: EN_PROGRESO
+**Estado**: REVISION
 **Prioridad**: ALTA
 **Dependencias**: [TASK-926]
 **Archivos**: [ferros/kernel/storage_fs.zen, agents/reports/TASK-927.md]
