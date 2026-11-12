@@ -1,6 +1,6 @@
 # CI remoto — workflow de GitHub Actions (TASK-918)
 
-Fecha: 2026-11-12. Este documento describe `.github/workflows/ci.yml`, su validación local y sus límites. Git local se recuperó en TASK-922 y el **remoto configurado** es `git@github.com:ferrberr/ZenFerros.git`. El primer [run de GitHub Actions](https://github.com/ferrberr/ZenFerros/actions/runs/43195298356), sobre `d39f268`, terminó con **success** y publicó `ci-matrix-json` y `ci-matrix-logs`. Los párrafos históricos de abajo describen la plantilla antes de su primera ejecución.
+Fecha: 2026-11-12. Este documento describe `.github/workflows/ci.yml`, su validación local y sus límites. Git local se recuperó en TASK-922 y el remoto configurado es `git@github.com:ferrberr/ZenFerros.git`. El [run ZENFS02](https://github.com/ferrberr/ZenFerros/actions/runs/43247018794) del commit `3ee0799` terminó con **success** en la matriz `--full` y publicó `ci-matrix-json` y `ci-matrix-logs`. El [primer run](https://github.com/ferrberr/ZenFerros/actions/runs/43195298356) sobre `d39f268` también pasó. Los párrafos históricos de abajo describen la plantilla antes de su primera ejecución.
 
 ## Qué haría
 

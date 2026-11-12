@@ -1,9 +1,7 @@
 # Workflow de CI remoto de ZenFerros (TASK-918).
 #
-# Estado: plantilla versionada que NO se ha ejecutado en GitHub desde este
-# repositorio local (no hay .git ni remoto). Lo que si esta verificado es su
-# estructura, con `python3 infrastructure/scripts/check_ci_workflow.py` y con el
-# paso de validacion que hay mas abajo. Ver docs/ci-remote.md.
+# Estado: ejecutado con exito en GitHub sobre main (TASK-929); el paso de
+# validacion estructural sigue siendo obligatorio. Ver docs/ci-remote.md.
 #
 # Objetivo: ejecutar la matriz local de TASK-911 (ci_matrix.py) en un runner
 # Linux alojado, con el toolchain provisionado, y publicar el resumen JSON como

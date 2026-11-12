@@ -1,6 +1,6 @@
 # TASK-929 — Recuperación e integración ZENFS02
 
-Estado: EN_PROGRESO (CI remoto pendiente). Responsable: /root; almacenamiento revisado por /root y syscalls revisadas por /root/storage_recovery.
+Estado: COMPLETADA. Responsable: /root; almacenamiento revisado por /root y syscalls revisadas por /root/storage_recovery.
 
 ## Diff y pruebas
 
@@ -10,5 +10,6 @@ Estado: EN_PROGRESO (CI remoto pendiente). Responsable: /root; almacenamiento re
 - `python3 -m unittest ferros.tests.test_pfs_vfs ferros.tests.test_pfs.PfsGuestTests` → 4/4 OK, 13,1 s.
 - `python3 -m unittest discover -s ferros/tests` → 47/47 OK, 40,7 s.
 - `python3 infrastructure/scripts/verify_all.py --full` → 8/8 PASS en 66,9 s: 163 compilador, 47 Ferros, 6 benchmarks, 174 selfhost = 390; 6/6 arranques QEMU de aceptación, reproducibilidad PASS. Logs `/tmp/zenferros-verify-lr1oy1f4`.
+- [GitHub Actions run 43247018794](https://github.com/ferrberr/ZenFerros/actions/runs/43247018794) del commit `3ee0799f3143b62a2a064f8628c2daac00c53ae6` → `success`: matriz `--full`, subida de `ci-matrix-json` y `ci-matrix-logs` completadas. Artefactos 13957133361 y 13958491601.
 
 Riesgos: los tests simulan cortes y sectores incompletos sobre el mock; QEMU valida integración, no cortes físicos. La recuperación depende del orden de `ata_flush`. No se afirma durabilidad en hardware real. Métricas: 8 archivos/512 B, 9 sectores de datos, scratch 3584 B por montaje.

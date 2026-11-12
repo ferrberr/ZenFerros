@@ -7,7 +7,7 @@ Actualizado: 2026-11-12 (TASK-926–929) · Hitos 1–8 cerrados; Hito 9 parcial
 - TASK-923: contrato del subconjunto implementado en `docs/zen/spec-mvp.md`, incluida la directiva textual `use`.
 - TASK-924 fue la base de reemplazo v1; TASK-926–929 añaden creación y recuperación ZENFS02.
 - TASK-925: CLI mínima escrita principalmente en Zen, archivo fuente→C11, con comparación diferencial frente a Rust; autohosting completo pendiente.
-- Puerta integrada: 8/8 PASS en 59,63 s; 163/45/6/174 = 388 pruebas, 6/6 QEMU y reproducibilidad PASS. Logs: `/tmp/zenferros-verify-c9snl2ng`.
+- Puerta integrada: 8/8 PASS en 66,9 s; 163/47/6/174 = 390 pruebas, 6/6 QEMU y reproducibilidad PASS. Logs: `/tmp/zenferros-verify-lr1oy1f4`. [CI remoto ZENFS02](https://github.com/ferrberr/ZenFerros/actions/runs/43247018794) `success`, con JSON y logs.
 
 Los conteos y brechas de la ronda 12 descritos a continuación son el corte histórico anterior a TASK-922–925.
 

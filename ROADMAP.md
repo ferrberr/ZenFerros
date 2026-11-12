@@ -2,7 +2,7 @@
 
 ## Estado a 2026-11-11 — Hito7 cerrado (DSH)
 
-Corte ZENFS02 (TASK-926–929): creación desde CPL3, migración v1 sin modificar LBA 16–32 y recuperación de cortes simulados integradas. Estado verificado localmente en mock ATA y QEMU debug/release; CI remoto del nuevo commit pendiente al cerrar TASK-929. La garantía no cubre hardware físico.
+Corte ZENFS02 (TASK-926–929): creación desde CPL3, migración v1 sin modificar LBA 16–32 y recuperación de cortes simulados integradas. Puerta local 8/8 PASS (390 tests, 6/6 QEMU) y [CI remoto del commit](https://github.com/ferrberr/ZenFerros/actions/runs/43247018794) `success` con artefactos. La garantía no cubre hardware físico.
 
 Actualización operativa 2026-11-12: TASK-922 creó Git local desde `e7737a6` y el [primer CI de GitHub](https://github.com/ferrberr/ZenFerros/actions/runs/43195298356) pasó con artefactos. TASK-923/924/925 se integraron y pasaron la puerta completa (388 tests). Los párrafos de estado anteriores son históricos; el corte actual está en `agents/STATE.md`.
 
@@ -148,7 +148,7 @@ Hito5 verificado:3threads con stacks/guardas, preemption PIT y yield/exit; revis
 | Formatter, linter, LSP | TASK-904 | ✅ COMPLETADA (mínimos): TASK-904A `zen fmt`, TASK-909 `zen lint --json`, TASK-910 `zen lsp` | 15 | TASK-208 |
 | Fuzzing / security audit | TASK-905 | ◐ PARCIAL: estrés QEMU + fuzz diferencial acotado (`stress.py`); campaña/auditoría PENDIENTES | 14 | TASK-606 |
 | Documentation completa | TASK-906 | ⏳ PENDIENTE | 15 | TASK-901 |
-| CI/CD reproducible builds | TASK-907 | ✅ PARCIAL: puerta `verify_all.py` + `docs/quality.md`; CI externa PENDIENTE | 17 | TASK-405 |
+| CI/CD reproducible builds | TASK-907 | ✅ INTEGRADA: puerta `verify_all.py`, `docs/quality.md` y GitHub Actions `--full` en `main` | 17 | TASK-405 |
 | Builds reproducibles locales + manifiesto | TASK-908 | ✅ COMPLETADA: C/kernel/usuario idénticos en 2 builds; `repro_build.py` integrado en la puerta | 17 | TASK-907 |
 | Matriz de CI local (quick/defecto/full) | TASK-911 | ✅ COMPLETADA: `ci_matrix.py` + `docs/ci.md`; quick/full PASS; JSON | 17 | TASK-907/908 |
 | Workflow CI remoto + validador | TASK-918 | ✅ COMPLETADA: `.github/workflows/ci.yml` (no ejecutado), 44 checks locales PASS | 17 | TASK-911 |
