@@ -1,0 +1,13 @@
+
+pub fn test_pmm_init(info:u64)->bool { return pmm_init(info); }
+pub fn test_pmm_alloc()->u64 { return pmm_alloc(); }
+pub fn test_pmm_free(address:u64)->bool { return pmm_free(address); }
+pub fn test_free_count()->u64 { return pmm_free_count(); }
+pub fn test_pmm_self()->bool { return pmm_self_test(); }
+pub fn test_vmm_init()->bool { return vmm_init(); }
+pub fn test_vmm_self()->bool { return vmm_self_test(); }
+pub fn test_heap_init() { heap_init(); }
+pub fn test_heap_alloc(size:u64,alignment:u64)->u64 { return heap_alloc(size,alignment); }
+pub fn test_heap_self()->bool { return heap_self_test(); }
+
+pub fn test_guard_page(address:u64)->bool { return vmm_guard_page(address); }

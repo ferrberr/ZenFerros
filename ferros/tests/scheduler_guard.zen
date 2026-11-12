@@ -1,0 +1,10 @@
+// Negative scheduler boot: healthy controller stack, real IDT/VMM.
+pub fn kernel_entry(magic:u64,info:u64) {
+    if !serial_init() { finish(0x11u32); return; }
+    if magic!=0x2badb002u64 || info==0 { kernel_panic("invalid handoff"); return; }
+    interrupts_init();
+    if !pmm_init(info) || !vmm_init() || !scheduler_init() { kernel_panic("negative setup failed"); return; }
+    serial_write("SCHEDULER GUARD NEGATIVE\n");
+    unsafe { volatile_store(ferros_thread_stack_guard(1) as *mut u64,123u64); }
+    kernel_panic("guard write returned");
+}

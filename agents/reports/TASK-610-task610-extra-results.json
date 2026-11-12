@@ -1,0 +1,145 @@
+[
+  {
+    "command": [
+      "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/bin/qemu-system-x86_64",
+      "-L",
+      "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/share/qemu",
+      "-machine",
+      "pc,accel=tcg",
+      "-cpu",
+      "qemu64",
+      "-m",
+      "32M",
+      "-smp",
+      "1",
+      "-nodefaults",
+      "-display",
+      "none",
+      "-monitor",
+      "none",
+      "-serial",
+      "stdio",
+      "-nic",
+      "none",
+      "-no-reboot",
+      "-device",
+      "isa-debug-exit,iobase=0xf4,iosize=0x04",
+      "-kernel",
+      "/home/ferranfg/proyectos/ZenFerros/ferros/build/release/ferros-multiboot.elf"
+    ],
+    "status": 33,
+    "timed_out": false,
+    "cancelled": false,
+    "seconds": 0.325064,
+    "passed": true,
+    "scheduler": {
+      "switches": 45,
+      "preemptions": 25,
+      "yields": 16,
+      "completed": 3
+    },
+    "memory_mib": 32
+  },
+  {
+    "command": [
+      "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/bin/qemu-system-x86_64",
+      "-L",
+      "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/share/qemu",
+      "-machine",
+      "pc,accel=tcg",
+      "-cpu",
+      "qemu64",
+      "-m",
+      "128M",
+      "-smp",
+      "1",
+      "-nodefaults",
+      "-display",
+      "none",
+      "-monitor",
+      "none",
+      "-serial",
+      "stdio",
+      "-nic",
+      "none",
+      "-no-reboot",
+      "-device",
+      "isa-debug-exit,iobase=0xf4,iosize=0x04",
+      "-kernel",
+      "/home/ferranfg/proyectos/ZenFerros/ferros/build/release/ferros-multiboot.elf"
+    ],
+    "status": 33,
+    "timed_out": false,
+    "cancelled": false,
+    "seconds": 0.332632,
+    "passed": true,
+    "scheduler": {
+      "switches": 45,
+      "preemptions": 25,
+      "yields": 16,
+      "completed": 3
+    },
+    "memory_mib": 128
+  },
+  {
+    "scenario": "guard",
+    "release": false,
+    "actual_status": 35,
+    "expected_status": 35,
+    "expectation_met": true
+  },
+  {
+    "scenario": "state",
+    "release": false,
+    "actual_status": 35,
+    "expected_status": 35,
+    "expectation_met": true
+  },
+  {
+    "scenario": "return",
+    "release": false,
+    "actual_status": 35,
+    "expected_status": 35,
+    "expectation_met": true
+  },
+  {
+    "scenario": "exception",
+    "release": false,
+    "actual_status": 35,
+    "expected_status": 35,
+    "expectation_met": true
+  },
+  {
+    "scenario": "guard",
+    "release": true,
+    "actual_status": 35,
+    "expected_status": 35,
+    "expectation_met": true
+  },
+  {
+    "scenario": "state",
+    "release": true,
+    "actual_status": 35,
+    "expected_status": 35,
+    "expectation_met": true
+  },
+  {
+    "scenario": "return",
+    "release": true,
+    "actual_status": 35,
+    "expected_status": 35,
+    "expectation_met": true
+  },
+  {
+    "scenario": "exception",
+    "release": true,
+    "actual_status": 35,
+    "expected_status": 35,
+    "expectation_met": true
+  },
+  {
+    "scenario": "no-preemption",
+    "timed_out": true,
+    "expectation_met": true
+  }
+]

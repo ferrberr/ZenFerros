@@ -1,0 +1,80 @@
+// TASK-915: `[u64]` slices as parameters plus the distributed array stdlib.
+//
+// `data` and `counts` are fixed-size local arrays. Passing them to a slice
+// parameter borrows them: the callee sees the same elements and its in-place
+// writes (reverse/sort) are visible here afterwards.
+use "../std/array.zen";
+
+fn show_bool(value: bool) -> void {
+    if value {
+        print("true");
+    } else {
+        print("false");
+    }
+    print("\n");
+}
+
+fn show_values(s: [u64]) -> void {
+    let mut i: u64 = 0;
+    while i < slice_len(s) {
+        if i > 0 {
+            print(" ");
+        }
+        print_uint(s[i]);
+        i += 1;
+    }
+    print("\n");
+}
+
+fn main() -> i32 {
+    let mut data: [u64; 6] = [42, 7, 19, 42, 3, 88];
+    print("values=");
+    show_values(data);
+    print("len=");
+    print_uint(slice_len(data));
+    print("\n");
+    print("sum=");
+    print_uint(sum_slice(data));
+    print("\n");
+    print("max=");
+    print_uint(max_slice(data));
+    print("\n");
+    print("contains 19 = ");
+    show_bool(contains_slice(data, 19));
+    print("contains 50 = ");
+    show_bool(contains_slice(data, 50));
+
+    reverse_slice(data);
+    print("reversed=");
+    show_values(data);
+    sort_slice(data);
+    print("sorted=");
+    show_values(data);
+
+    // A different length reaches the same slice parameter unchanged.
+    let mut counts: [u64; 3] = [5, 1, 4];
+    print("small_sum=");
+    print_uint(sum_slice(counts));
+    print("\n");
+    print("small_max=");
+    print_uint(max_slice(counts));
+    print("\n");
+    sort_slice(counts);
+    print("small_sorted=");
+    show_values(counts);
+
+    if sum_slice(data) != 201 || slice_len(data) != 6 {
+        return 1;
+    }
+    if data[0] != 3 || data[5] != 88 || max_slice(data) != 88 {
+        return 2;
+    }
+    if !contains_slice(data, 42) || contains_slice(data, 50) {
+        return 3;
+    }
+    if sum_slice(counts) != 10 || counts[0] != 1 || counts[2] != 5 {
+        return 4;
+    }
+    print("slices ok\n");
+    return 0;
+}

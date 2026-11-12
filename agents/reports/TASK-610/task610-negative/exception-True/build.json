@@ -1,0 +1,82 @@
+{
+  "source_units": [
+    "arch/x86_64/abi.zen",
+    "drivers/serial.zen",
+    "memory.zen",
+    "interrupts.zen",
+    "scheduler.zen",
+    "runtime.zen",
+    "main.zen"
+  ],
+  "source_paths": [
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/abi.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/drivers/serial.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/memory.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/interrupts.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/scheduler.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/runtime.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/tests/unexpected_exception.zen"
+  ],
+  "release": true,
+  "payload": {
+    "elf_class": 2,
+    "entry": "0x101000",
+    "multiboot_offset": 4096,
+    "bytes": 26624,
+    "load_segments": [
+      {
+        "address": 1048576,
+        "file_offset": 4096,
+        "file_bytes": 12288,
+        "memory_bytes": 12288,
+        "flags": 5
+      },
+      {
+        "address": 1060864,
+        "file_offset": 16384,
+        "file_bytes": 4096,
+        "memory_bytes": 4096,
+        "flags": 4
+      },
+      {
+        "address": 1064960,
+        "file_offset": 4096,
+        "file_bytes": 0,
+        "memory_bytes": 425984,
+        "flags": 6
+      }
+    ]
+  },
+  "image": {
+    "elf_class": 1,
+    "entry": "0x101000",
+    "multiboot_offset": 4096,
+    "bytes": 25324,
+    "load_segments": [
+      {
+        "address": 1048576,
+        "file_offset": 4096,
+        "file_bytes": 12288,
+        "memory_bytes": 12288,
+        "flags": 5
+      },
+      {
+        "address": 1060864,
+        "file_offset": 16384,
+        "file_bytes": 4096,
+        "memory_bytes": 4096,
+        "flags": 4
+      },
+      {
+        "address": 1064960,
+        "file_offset": 4096,
+        "file_bytes": 0,
+        "memory_bytes": 425984,
+        "flags": 6
+      }
+    ]
+  },
+  "build_seconds": 0.169615,
+  "image_path": "/home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/exception-True/ferros-multiboot.elf",
+  "undefined_symbols": 0
+}

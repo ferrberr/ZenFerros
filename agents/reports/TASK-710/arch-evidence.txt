@@ -1,0 +1,533 @@
+TASK-710 architecture static evidence
+
+ASM compilation: userspace.S and interrupts.S, cc -m64 -ffreestanding -fno-pie -mno-red-zone -mgeneral-regs-only -c; both exit0 without diagnostics. Privileged routines never executed on host.
+
+PASS static assertions: GDT selectors/descriptors/limit; TSS descriptor base slots, limit103 and IOPB104; public state4096/tables8192/trap stack32768 layout; six ABI callee saves/restores; 14 user GPRs zeroed except RDI arg; fixed0x202 IRET flags; ISR128 special getter and exact dispatcher frame offsets.
+
+Object metrics: .text.userspace288B, .data.userspace66B, .bss.userspace45168B alignment4096. No unresolved external symbols in userspace.o.
+
+API preconditions: init/enter IF0, serial single active invocation, supplied user RSP8mod16/dummy return slot. Root retains loader/IDT/mapping/syscall/fault policy. Public state contains no arch-private offsets.
+Risks pending: QEMU CPL3/TSS/IRET/fault/syscall runtime integration; independent TASK-711 review. No TLS/SIMD/CR3/IST/nesting support; all code general-regs-only/no-red-zone; FS/GS MSR bases assumed never configured by kernel.
+
+Model/effort: no runtime identifier available; assigned task calls for Sol/high.
+
+There are 14 section headers, starting at offset 0x5a0:
+
+Section Headers:
+  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            0000000000000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        0000000000000000 000040 000000 00  AX  0   0  1
+  [ 2] .data             PROGBITS        0000000000000000 000040 000000 00  WA  0   0  1
+  [ 3] .bss              NOBITS          0000000000000000 000040 000000 00  WA  0   0  1
+  [ 4] .text.userspace   PROGBITS        0000000000000000 000040 000120 00  AX  0   0  1
+  [ 5] .rela.text.userspace RELA            0000000000000000 000368 000198 18   I 11   4  8
+  [ 6] .data.userspace   PROGBITS        0000000000000000 000160 000042 00  WA  0   0 16
+  [ 7] .rela.data.userspace RELA            0000000000000000 000500 000018 18   I 11   6  8
+  [ 8] .bss.userspace    NOBITS          0000000000000000 0001a8 00b070 00  WA  0   0 4096
+  [ 9] .note.GNU-stack   PROGBITS        0000000000000000 0001a8 000000 00      0   0  1
+  [10] .note.gnu.property NOTE            0000000000000000 0001a8 000030 00   A  0   0  8
+  [11] .symtab           SYMTAB          0000000000000000 0001d8 0000f0 18     12   3  8
+  [12] .strtab           STRTAB          0000000000000000 0002c8 00009d 00      0   0  1
+  [13] .shstrtab         STRTAB          0000000000000000 000518 000088 00      0   0  1
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings), I (info),
+  L (link order), O (extra OS processing required), G (group), T (TLS),
+  C (compressed), x (unknown), o (OS specific), E (exclude),
+  D (mbind), l (large), p (processor specific)
+
+
+/tmp/task710-userspace.o:     file format elf64-x86-64
+
+
+Disassembly of section .text.userspace:
+
+0000000000000000 <ferros_user_arch_init>:
+   0:	fa                   	cli
+   1:	fc                   	cld
+   2:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 9 <ferros_user_arch_init+0x9>
+			5: R_X86_64_PC32	.bss.userspace+0xaffc
+   9:	31 c0                	xor    %eax,%eax
+   b:	b9 0d 00 00 00       	mov    $0xd,%ecx
+  10:	f3 48 ab             	rep stos %rax,(%rdi)
+  13:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 1a <ferros_user_arch_init+0x1a>
+			16: R_X86_64_PC32	.bss.userspace+0xaffc
+  1a:	48 89 05 00 00 00 00 	mov    %rax,0x0(%rip)        # 21 <ferros_user_arch_init+0x21>
+			1d: R_X86_64_PC32	.bss.userspace+0xb000
+  21:	66 c7 05 00 00 00 00 	movw   $0x68,0x0(%rip)        # 2a <ferros_user_arch_init+0x2a>
+  28:	68 00 
+			24: R_X86_64_PC32	.bss.userspace+0xb060
+  2a:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 31 <ferros_user_arch_init+0x31>
+			2d: R_X86_64_PC32	.bss.userspace+0xaffc
+  31:	66 89 05 00 00 00 00 	mov    %ax,0x0(%rip)        # 38 <ferros_user_arch_init+0x38>
+			34: R_X86_64_PC32	.data.userspace+0x26
+  38:	48 c1 e8 10          	shr    $0x10,%rax
+  3c:	88 05 00 00 00 00    	mov    %al,0x0(%rip)        # 42 <ferros_user_arch_init+0x42>
+			3e: R_X86_64_PC32	.data.userspace+0x28
+  42:	48 c1 e8 08          	shr    $0x8,%rax
+  46:	88 05 00 00 00 00    	mov    %al,0x0(%rip)        # 4c <ferros_user_arch_init+0x4c>
+			48: R_X86_64_PC32	.data.userspace+0x2b
+  4c:	48 c1 e8 08          	shr    $0x8,%rax
+  50:	89 05 00 00 00 00    	mov    %eax,0x0(%rip)        # 56 <ferros_user_arch_init+0x56>
+			52: R_X86_64_PC32	.data.userspace+0x2c
+  56:	c6 05 00 00 00 00 89 	movb   $0x89,0x0(%rip)        # 5d <ferros_user_arch_init+0x5d>
+			58: R_X86_64_PC32	.data.userspace+0x28
+  5d:	0f 01 15 00 00 00 00 	lgdt   0x0(%rip)        # 64 <ferros_user_arch_init+0x64>
+			60: R_X86_64_PC32	.data.userspace+0x34
+  64:	66 b8 10 00          	mov    $0x10,%ax
+  68:	8e d8                	mov    %eax,%ds
+  6a:	8e c0                	mov    %eax,%es
+  6c:	8e d0                	mov    %eax,%ss
+  6e:	66 31 c0             	xor    %ax,%ax
+  71:	8e e0                	mov    %eax,%fs
+  73:	8e e8                	mov    %eax,%gs
+  75:	66 b8 28 00          	mov    $0x28,%ax
+  79:	0f 00 d8             	ltr    %eax
+  7c:	b8 01 00 00 00       	mov    $0x1,%eax
+  81:	c3                   	ret
+
+0000000000000082 <ferros_user_enter>:
+  82:	fa                   	cli
+  83:	fc                   	cld
+  84:	55                   	push   %rbp
+  85:	53                   	push   %rbx
+  86:	41 54                	push   %r12
+  88:	41 55                	push   %r13
+  8a:	41 56                	push   %r14
+  8c:	41 57                	push   %r15
+  8e:	48 89 25 00 00 00 00 	mov    %rsp,0x0(%rip)        # 95 <ferros_user_enter+0x13>
+			91: R_X86_64_PC32	.bss.userspace+0xb064
+  95:	6a 1b                	push   $0x1b
+  97:	56                   	push   %rsi
+  98:	68 02 02 00 00       	push   $0x202
+  9d:	6a 23                	push   $0x23
+  9f:	57                   	push   %rdi
+  a0:	48 89 d7             	mov    %rdx,%rdi
+  a3:	66 b8 1b 00          	mov    $0x1b,%ax
+  a7:	8e d8                	mov    %eax,%ds
+  a9:	8e c0                	mov    %eax,%es
+  ab:	66 31 c0             	xor    %ax,%ax
+  ae:	8e e0                	mov    %eax,%fs
+  b0:	8e e8                	mov    %eax,%gs
+  b2:	31 c0                	xor    %eax,%eax
+  b4:	31 db                	xor    %ebx,%ebx
+  b6:	31 c9                	xor    %ecx,%ecx
+  b8:	31 d2                	xor    %edx,%edx
+  ba:	31 f6                	xor    %esi,%esi
+  bc:	31 ed                	xor    %ebp,%ebp
+  be:	45 31 c0             	xor    %r8d,%r8d
+  c1:	45 31 c9             	xor    %r9d,%r9d
+  c4:	45 31 d2             	xor    %r10d,%r10d
+  c7:	45 31 db             	xor    %r11d,%r11d
+  ca:	45 31 e4             	xor    %r12d,%r12d
+  cd:	45 31 ed             	xor    %r13d,%r13d
+  d0:	45 31 f6             	xor    %r14d,%r14d
+  d3:	45 31 ff             	xor    %r15d,%r15d
+  d6:	48 cf                	iretq
+
+00000000000000d8 <ferros_user_leave>:
+  d8:	fa                   	cli
+  d9:	fc                   	cld
+  da:	48 89 f8             	mov    %rdi,%rax
+  dd:	66 ba 10 00          	mov    $0x10,%dx
+  e1:	8e da                	mov    %edx,%ds
+  e3:	8e c2                	mov    %edx,%es
+  e5:	8e d2                	mov    %edx,%ss
+  e7:	66 31 d2             	xor    %dx,%dx
+  ea:	8e e2                	mov    %edx,%fs
+  ec:	8e ea                	mov    %edx,%gs
+  ee:	48 8b 25 00 00 00 00 	mov    0x0(%rip),%rsp        # f5 <ferros_user_leave+0x1d>
+			f1: R_X86_64_PC32	.bss.userspace+0xb064
+  f5:	41 5f                	pop    %r15
+  f7:	41 5e                	pop    %r14
+  f9:	41 5d                	pop    %r13
+  fb:	41 5c                	pop    %r12
+  fd:	5b                   	pop    %rbx
+  fe:	5d                   	pop    %rbp
+  ff:	c3                   	ret
+
+0000000000000100 <ferros_user_state>:
+ 100:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 107 <ferros_user_state+0x7>
+			103: R_X86_64_PC32	.bss.userspace-0x4
+ 107:	c3                   	ret
+
+0000000000000108 <ferros_user_tables>:
+ 108:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 10f <ferros_user_tables+0x7>
+			10b: R_X86_64_PC32	.bss.userspace+0xffc
+ 10f:	c3                   	ret
+
+0000000000000110 <ferros_user_kernel_stack_bottom>:
+ 110:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 117 <ferros_user_kernel_stack_bottom+0x7>
+			113: R_X86_64_PC32	.bss.userspace+0x2ffc
+ 117:	c3                   	ret
+
+0000000000000118 <ferros_user_kernel_stack_top>:
+ 118:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 11f <ferros_user_kernel_stack_top+0x7>
+			11b: R_X86_64_PC32	.bss.userspace+0xaffc
+ 11f:	c3                   	ret
+
+
+/tmp/task710-interrupts.o:     file format elf64-x86-64
+
+
+Disassembly of section .text.interrupts:
+
+0000000000000000 <__ferros_isr_0>:
+   0:	6a 00                	push   $0x0
+   2:	6a 00                	push   $0x0
+   4:	e9 6c 01 00 00       	jmp    175 <__ferros_isr_common>
+
+0000000000000009 <__ferros_isr_1>:
+   9:	6a 00                	push   $0x0
+   b:	6a 01                	push   $0x1
+   d:	e9 63 01 00 00       	jmp    175 <__ferros_isr_common>
+
+0000000000000012 <__ferros_isr_2>:
+  12:	6a 00                	push   $0x0
+  14:	6a 02                	push   $0x2
+  16:	e9 5a 01 00 00       	jmp    175 <__ferros_isr_common>
+
+000000000000001b <__ferros_isr_3>:
+  1b:	6a 00                	push   $0x0
+  1d:	6a 03                	push   $0x3
+  1f:	e9 51 01 00 00       	jmp    175 <__ferros_isr_common>
+
+0000000000000024 <__ferros_isr_4>:
+  24:	6a 00                	push   $0x0
+  26:	6a 04                	push   $0x4
+  28:	e9 48 01 00 00       	jmp    175 <__ferros_isr_common>
+
+000000000000002d <__ferros_isr_5>:
+  2d:	6a 00                	push   $0x0
+  2f:	6a 05                	push   $0x5
+  31:	e9 3f 01 00 00       	jmp    175 <__ferros_isr_common>
+
+0000000000000036 <__ferros_isr_6>:
+  36:	6a 00                	push   $0x0
+  38:	6a 06                	push   $0x6
+  3a:	e9 36 01 00 00       	jmp    175 <__ferros_isr_common>
+
+000000000000003f <__ferros_isr_7>:
+  3f:	6a 00                	push   $0x0
+  41:	6a 07                	push   $0x7
+  43:	e9 2d 01 00 00       	jmp    175 <__ferros_isr_common>
+
+0000000000000048 <__ferros_isr_8>:
+  48:	6a 08                	push   $0x8
+  4a:	e9 26 01 00 00       	jmp    175 <__ferros_isr_common>
+
+000000000000004f <__ferros_isr_9>:
+  4f:	6a 00                	push   $0x0
+  51:	6a 09                	push   $0x9
+  53:	e9 1d 01 00 00       	jmp    175 <__ferros_isr_common>
+
+0000000000000058 <__ferros_isr_10>:
+  58:	6a 0a                	push   $0xa
+  5a:	e9 16 01 00 00       	jmp    175 <__ferros_isr_common>
+
+000000000000005f <__ferros_isr_11>:
+  5f:	6a 0b                	push   $0xb
+  61:	e9 0f 01 00 00       	jmp    175 <__ferros_isr_common>
+
+0000000000000066 <__ferros_isr_12>:
+  66:	6a 0c                	push   $0xc
+  68:	e9 08 01 00 00       	jmp    175 <__ferros_isr_common>
+
+000000000000006d <__ferros_isr_13>:
+  6d:	6a 0d                	push   $0xd
+  6f:	e9 01 01 00 00       	jmp    175 <__ferros_isr_common>
+
+0000000000000074 <__ferros_isr_14>:
+  74:	6a 0e                	push   $0xe
+  76:	e9 fa 00 00 00       	jmp    175 <__ferros_isr_common>
+
+000000000000007b <__ferros_isr_15>:
+  7b:	6a 00                	push   $0x0
+  7d:	6a 0f                	push   $0xf
+  7f:	e9 f1 00 00 00       	jmp    175 <__ferros_isr_common>
+
+0000000000000084 <__ferros_isr_16>:
+  84:	6a 00                	push   $0x0
+  86:	6a 10                	push   $0x10
+  88:	e9 e8 00 00 00       	jmp    175 <__ferros_isr_common>
+
+000000000000008d <__ferros_isr_17>:
+  8d:	6a 11                	push   $0x11
+  8f:	e9 e1 00 00 00       	jmp    175 <__ferros_isr_common>
+
+0000000000000094 <__ferros_isr_18>:
+  94:	6a 00                	push   $0x0
+  96:	6a 12                	push   $0x12
+  98:	e9 d8 00 00 00       	jmp    175 <__ferros_isr_common>
+
+000000000000009d <__ferros_isr_19>:
+  9d:	6a 00                	push   $0x0
+  9f:	6a 13                	push   $0x13
+  a1:	e9 cf 00 00 00       	jmp    175 <__ferros_isr_common>
+
+00000000000000a6 <__ferros_isr_20>:
+  a6:	6a 00                	push   $0x0
+  a8:	6a 14                	push   $0x14
+  aa:	e9 c6 00 00 00       	jmp    175 <__ferros_isr_common>
+
+00000000000000af <__ferros_isr_21>:
+  af:	6a 15                	push   $0x15
+  b1:	e9 bf 00 00 00       	jmp    175 <__ferros_isr_common>
+
+00000000000000b6 <__ferros_isr_22>:
+  b6:	6a 00                	push   $0x0
+  b8:	6a 16                	push   $0x16
+  ba:	e9 b6 00 00 00       	jmp    175 <__ferros_isr_common>
+
+00000000000000bf <__ferros_isr_23>:
+  bf:	6a 00                	push   $0x0
+  c1:	6a 17                	push   $0x17
+  c3:	e9 ad 00 00 00       	jmp    175 <__ferros_isr_common>
+
+00000000000000c8 <__ferros_isr_24>:
+  c8:	6a 00                	push   $0x0
+  ca:	6a 18                	push   $0x18
+  cc:	e9 a4 00 00 00       	jmp    175 <__ferros_isr_common>
+
+00000000000000d1 <__ferros_isr_25>:
+  d1:	6a 00                	push   $0x0
+  d3:	6a 19                	push   $0x19
+  d5:	e9 9b 00 00 00       	jmp    175 <__ferros_isr_common>
+
+00000000000000da <__ferros_isr_26>:
+  da:	6a 00                	push   $0x0
+  dc:	6a 1a                	push   $0x1a
+  de:	e9 92 00 00 00       	jmp    175 <__ferros_isr_common>
+
+00000000000000e3 <__ferros_isr_27>:
+  e3:	6a 00                	push   $0x0
+  e5:	6a 1b                	push   $0x1b
+  e7:	e9 89 00 00 00       	jmp    175 <__ferros_isr_common>
+
+00000000000000ec <__ferros_isr_28>:
+  ec:	6a 00                	push   $0x0
+  ee:	6a 1c                	push   $0x1c
+  f0:	e9 80 00 00 00       	jmp    175 <__ferros_isr_common>
+
+00000000000000f5 <__ferros_isr_29>:
+  f5:	6a 1d                	push   $0x1d
+  f7:	eb 7c                	jmp    175 <__ferros_isr_common>
+
+00000000000000f9 <__ferros_isr_30>:
+  f9:	6a 1e                	push   $0x1e
+  fb:	eb 78                	jmp    175 <__ferros_isr_common>
+
+00000000000000fd <__ferros_isr_31>:
+  fd:	6a 00                	push   $0x0
+  ff:	6a 1f                	push   $0x1f
+ 101:	eb 72                	jmp    175 <__ferros_isr_common>
+
+0000000000000103 <__ferros_isr_32>:
+ 103:	6a 00                	push   $0x0
+ 105:	6a 20                	push   $0x20
+ 107:	eb 6c                	jmp    175 <__ferros_isr_common>
+
+0000000000000109 <__ferros_isr_33>:
+ 109:	6a 00                	push   $0x0
+ 10b:	6a 21                	push   $0x21
+ 10d:	eb 66                	jmp    175 <__ferros_isr_common>
+
+000000000000010f <__ferros_isr_34>:
+ 10f:	6a 00                	push   $0x0
+ 111:	6a 22                	push   $0x22
+ 113:	eb 60                	jmp    175 <__ferros_isr_common>
+
+0000000000000115 <__ferros_isr_35>:
+ 115:	6a 00                	push   $0x0
+ 117:	6a 23                	push   $0x23
+ 119:	eb 5a                	jmp    175 <__ferros_isr_common>
+
+000000000000011b <__ferros_isr_36>:
+ 11b:	6a 00                	push   $0x0
+ 11d:	6a 24                	push   $0x24
+ 11f:	eb 54                	jmp    175 <__ferros_isr_common>
+
+0000000000000121 <__ferros_isr_37>:
+ 121:	6a 00                	push   $0x0
+ 123:	6a 25                	push   $0x25
+ 125:	eb 4e                	jmp    175 <__ferros_isr_common>
+
+0000000000000127 <__ferros_isr_38>:
+ 127:	6a 00                	push   $0x0
+ 129:	6a 26                	push   $0x26
+ 12b:	eb 48                	jmp    175 <__ferros_isr_common>
+
+000000000000012d <__ferros_isr_39>:
+ 12d:	6a 00                	push   $0x0
+ 12f:	6a 27                	push   $0x27
+ 131:	eb 42                	jmp    175 <__ferros_isr_common>
+
+0000000000000133 <__ferros_isr_40>:
+ 133:	6a 00                	push   $0x0
+ 135:	6a 28                	push   $0x28
+ 137:	eb 3c                	jmp    175 <__ferros_isr_common>
+
+0000000000000139 <__ferros_isr_41>:
+ 139:	6a 00                	push   $0x0
+ 13b:	6a 29                	push   $0x29
+ 13d:	eb 36                	jmp    175 <__ferros_isr_common>
+
+000000000000013f <__ferros_isr_42>:
+ 13f:	6a 00                	push   $0x0
+ 141:	6a 2a                	push   $0x2a
+ 143:	eb 30                	jmp    175 <__ferros_isr_common>
+
+0000000000000145 <__ferros_isr_43>:
+ 145:	6a 00                	push   $0x0
+ 147:	6a 2b                	push   $0x2b
+ 149:	eb 2a                	jmp    175 <__ferros_isr_common>
+
+000000000000014b <__ferros_isr_44>:
+ 14b:	6a 00                	push   $0x0
+ 14d:	6a 2c                	push   $0x2c
+ 14f:	eb 24                	jmp    175 <__ferros_isr_common>
+
+0000000000000151 <__ferros_isr_45>:
+ 151:	6a 00                	push   $0x0
+ 153:	6a 2d                	push   $0x2d
+ 155:	eb 1e                	jmp    175 <__ferros_isr_common>
+
+0000000000000157 <__ferros_isr_46>:
+ 157:	6a 00                	push   $0x0
+ 159:	6a 2e                	push   $0x2e
+ 15b:	eb 18                	jmp    175 <__ferros_isr_common>
+
+000000000000015d <__ferros_isr_47>:
+ 15d:	6a 00                	push   $0x0
+ 15f:	6a 2f                	push   $0x2f
+ 161:	eb 12                	jmp    175 <__ferros_isr_common>
+
+0000000000000163 <__ferros_isr_128>:
+ 163:	6a 00                	push   $0x0
+ 165:	68 80 00 00 00       	push   $0x80
+ 16a:	eb 09                	jmp    175 <__ferros_isr_common>
+
+000000000000016c <__ferros_isr_255>:
+ 16c:	6a 00                	push   $0x0
+ 16e:	68 ff 00 00 00       	push   $0xff
+ 173:	eb 00                	jmp    175 <__ferros_isr_common>
+
+0000000000000175 <__ferros_isr_common>:
+ 175:	50                   	push   %rax
+ 176:	53                   	push   %rbx
+ 177:	51                   	push   %rcx
+ 178:	52                   	push   %rdx
+ 179:	56                   	push   %rsi
+ 17a:	57                   	push   %rdi
+ 17b:	55                   	push   %rbp
+ 17c:	41 50                	push   %r8
+ 17e:	41 51                	push   %r9
+ 180:	41 52                	push   %r10
+ 182:	41 53                	push   %r11
+ 184:	41 54                	push   %r12
+ 186:	41 55                	push   %r13
+ 188:	41 56                	push   %r14
+ 18a:	41 57                	push   %r15
+ 18c:	fc                   	cld
+ 18d:	48 89 e3             	mov    %rsp,%rbx
+ 190:	48 8b 7b 78          	mov    0x78(%rbx),%rdi
+ 194:	48 8b b3 80 00 00 00 	mov    0x80(%rbx),%rsi
+ 19b:	48 8d 93 88 00 00 00 	lea    0x88(%rbx),%rdx
+ 1a2:	0f 20 d1             	mov    %cr2,%rcx
+ 1a5:	48 83 e4 f0          	and    $0xfffffffffffffff0,%rsp
+ 1a9:	e8 00 00 00 00       	call   1ae <__ferros_isr_common+0x39>
+			1aa: R_X86_64_PLT32	interrupt_dispatch-0x4
+ 1ae:	48 89 dc             	mov    %rbx,%rsp
+ 1b1:	41 5f                	pop    %r15
+ 1b3:	41 5e                	pop    %r14
+ 1b5:	41 5d                	pop    %r13
+ 1b7:	41 5c                	pop    %r12
+ 1b9:	41 5b                	pop    %r11
+ 1bb:	41 5a                	pop    %r10
+ 1bd:	41 59                	pop    %r9
+ 1bf:	41 58                	pop    %r8
+ 1c1:	5d                   	pop    %rbp
+ 1c2:	5f                   	pop    %rdi
+ 1c3:	5e                   	pop    %rsi
+ 1c4:	5a                   	pop    %rdx
+ 1c5:	59                   	pop    %rcx
+ 1c6:	5b                   	pop    %rbx
+ 1c7:	58                   	pop    %rax
+ 1c8:	48 83 c4 10          	add    $0x10,%rsp
+ 1cc:	48 cf                	iretq
+
+00000000000001ce <ferros_isr_address>:
+ 1ce:	31 c0                	xor    %eax,%eax
+ 1d0:	48 81 ff 00 01 00 00 	cmp    $0x100,%rdi
+ 1d7:	73 28                	jae    201 <ferros_isr_address+0x33>
+ 1d9:	48 8d 05 83 ff ff ff 	lea    -0x7d(%rip),%rax        # 163 <__ferros_isr_128>
+ 1e0:	48 81 ff 80 00 00 00 	cmp    $0x80,%rdi
+ 1e7:	74 18                	je     201 <ferros_isr_address+0x33>
+ 1e9:	48 8d 05 7c ff ff ff 	lea    -0x84(%rip),%rax        # 16c <__ferros_isr_255>
+ 1f0:	48 83 ff 30          	cmp    $0x30,%rdi
+ 1f4:	73 0b                	jae    201 <ferros_isr_address+0x33>
+ 1f6:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 1fd <ferros_isr_address+0x2f>
+			1f9: R_X86_64_PC32	.rodata.interrupts-0x4
+ 1fd:	48 8b 04 f8          	mov    (%rax,%rdi,8),%rax
+ 201:	c3                   	ret
+
+0000000000000202 <ferros_load_idt>:
+ 202:	48 83 ec 10          	sub    $0x10,%rsp
+ 206:	66 89 34 24          	mov    %si,(%rsp)
+ 20a:	48 89 7c 24 02       	mov    %rdi,0x2(%rsp)
+ 20f:	0f 01 1c 24          	lidt   (%rsp)
+ 213:	48 83 c4 10          	add    $0x10,%rsp
+ 217:	c3                   	ret
+
+0000000000000218 <ferros_interrupt_disable>:
+ 218:	fa                   	cli
+ 219:	c3                   	ret
+
+000000000000021a <ferros_wait_interrupt>:
+ 21a:	fb                   	sti
+ 21b:	f4                   	hlt
+ 21c:	fa                   	cli
+ 21d:	c3                   	ret
+
+000000000000021e <ferros_breakpoint>:
+ 21e:	cc                   	int3
+ 21f:	c3                   	ret
+
+0000000000000220 <ferros_probe_null>:
+ 220:	31 c0                	xor    %eax,%eax
+
+0000000000000222 <__ferros_null_fault_site>:
+ 222:	48 8b 00             	mov    (%rax),%rax
+
+0000000000000225 <__ferros_null_fault_resume>:
+ 225:	c3                   	ret
+
+0000000000000226 <ferros_probe_write_ro>:
+ 226:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 22d <__ferros_ro_fault_site>
+			229: R_X86_64_PC32	.rodata.interrupts+0x17c
+
+000000000000022d <__ferros_ro_fault_site>:
+ 22d:	c6 00 5a             	movb   $0x5a,(%rax)
+
+0000000000000230 <__ferros_ro_fault_resume>:
+ 230:	c3                   	ret
+
+0000000000000231 <ferros_null_fault_site>:
+ 231:	48 8d 05 ea ff ff ff 	lea    -0x16(%rip),%rax        # 222 <__ferros_null_fault_site>
+ 238:	c3                   	ret
+
+0000000000000239 <ferros_null_fault_resume>:
+ 239:	48 8d 05 e5 ff ff ff 	lea    -0x1b(%rip),%rax        # 225 <__ferros_null_fault_resume>
+ 240:	c3                   	ret
+
+0000000000000241 <ferros_ro_fault_site>:
+ 241:	48 8d 05 e5 ff ff ff 	lea    -0x1b(%rip),%rax        # 22d <__ferros_ro_fault_site>
+ 248:	c3                   	ret
+
+0000000000000249 <ferros_ro_fault_resume>:
+ 249:	48 8d 05 e0 ff ff ff 	lea    -0x20(%rip),%rax        # 230 <__ferros_ro_fault_resume>
+ 250:	c3                   	ret
+
+0000000000000251 <ferros_ro_fault_address>:
+ 251:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 258 <ferros_ro_fault_address+0x7>
+			254: R_X86_64_PC32	.rodata.interrupts+0x17c
+ 258:	c3                   	ret

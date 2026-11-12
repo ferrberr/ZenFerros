@@ -1,0 +1,1676 @@
+{
+  "task": "TASK-802",
+  "timestamp_utc": "2026-11-11T21:05:23+00:00",
+  "command": "/usr/bin/python3 benchmarks/scripts/flags.py --reps 7 --warmup 2 --passes 2",
+  "host": {
+    "platform": "Linux-7.2.11-arch1-1-x86_64-with-glibc2.44",
+    "machine": "x86_64",
+    "kernel": "7.2.11-arch1-1",
+    "cpu": "AMD Ryzen 7 260 w/ Radeon 780M Graphics",
+    "cpu_count": 16,
+    "affinity_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "python": "3.14.8",
+    "loadavg": [
+      3.24658203125,
+      3.10791015625,
+      2.6171875
+    ]
+  },
+  "toolchains": {
+    "compiler": {
+      "cc": "cc",
+      "cc_available": true,
+      "cc_version": "cc (GCC) 16.2.1 20260810"
+    },
+    "zen": {
+      "path": "/home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen",
+      "available": true,
+      "version": "zen 0.1.0 (bootstrap)"
+    }
+  },
+  "config": {
+    "warmup": 2,
+    "reps": 7,
+    "passes": 2,
+    "cpu": 0,
+    "cpu_affinity_effective": true,
+    "timing": "tiempo de CPU del hijo (getrusage RUSAGE_CHILDREN), ejecuciones intercaladas; incluye arranque del proceso",
+    "variants": {
+      "O2": [
+        "-O2"
+      ],
+      "O3": [
+        "-O3"
+      ],
+      "O2-LTO": [
+        "-O2",
+        "-flto"
+      ],
+      "O3-LTO": [
+        "-O3",
+        "-flto"
+      ]
+    },
+    "threshold": 0.03
+  },
+  "benchmarks": {
+    "arith": {
+      "desc": "",
+      "c_source": "/tmp/zen-flags-56esdkk9/arith.c",
+      "c_bytes": 10482,
+      "emit_seconds": 0.0014
+    },
+    "collatz": {
+      "desc": "",
+      "c_source": "/tmp/zen-flags-56esdkk9/collatz.c",
+      "c_bytes": 11219,
+      "emit_seconds": 0.0015
+    },
+    "mem": {
+      "desc": "",
+      "c_source": "/tmp/zen-flags-56esdkk9/mem.c",
+      "c_bytes": 12083,
+      "emit_seconds": 0.0015
+    },
+    "sort": {
+      "desc": "",
+      "c_source": "/tmp/zen-flags-56esdkk9/sort.c",
+      "c_bytes": 17634,
+      "emit_seconds": 0.0017
+    }
+  },
+  "variants": [
+    "O2",
+    "O3",
+    "O2-LTO",
+    "O3-LTO"
+  ],
+  "correctness": {
+    "arith": {
+      "expected": "385904853",
+      "reference_checksum": "385904853",
+      "reference_source": "benchmarks/build/c/arith",
+      "variants": {
+        "O2": {
+          "available": true,
+          "checksum": "385904853",
+          "match": true
+        },
+        "O3": {
+          "available": true,
+          "checksum": "385904853",
+          "match": true
+        },
+        "O2-LTO": {
+          "available": true,
+          "checksum": "385904853",
+          "match": true
+        },
+        "O3-LTO": {
+          "available": true,
+          "checksum": "385904853",
+          "match": true
+        }
+      }
+    },
+    "collatz": {
+      "expected": "62134795",
+      "reference_checksum": "62134795",
+      "reference_source": "benchmarks/build/c/collatz",
+      "variants": {
+        "O2": {
+          "available": true,
+          "checksum": "62134795",
+          "match": true
+        },
+        "O3": {
+          "available": true,
+          "checksum": "62134795",
+          "match": true
+        },
+        "O2-LTO": {
+          "available": true,
+          "checksum": "62134795",
+          "match": true
+        },
+        "O3-LTO": {
+          "available": true,
+          "checksum": "62134795",
+          "match": true
+        }
+      }
+    },
+    "mem": {
+      "expected": "2139062878",
+      "reference_checksum": "2139062878",
+      "reference_source": "benchmarks/build/c/mem",
+      "variants": {
+        "O2": {
+          "available": true,
+          "checksum": "2139062878",
+          "match": true
+        },
+        "O3": {
+          "available": true,
+          "checksum": "2139062878",
+          "match": true
+        },
+        "O2-LTO": {
+          "available": true,
+          "checksum": "2139062878",
+          "match": true
+        },
+        "O3-LTO": {
+          "available": true,
+          "checksum": "2139062878",
+          "match": true
+        }
+      }
+    },
+    "sort": {
+      "expected": "14559707269027860169",
+      "reference_checksum": "14559707269027860169",
+      "reference_source": "benchmarks/build/c/sort",
+      "variants": {
+        "O2": {
+          "available": true,
+          "checksum": "14559707269027860169",
+          "match": true
+        },
+        "O3": {
+          "available": true,
+          "checksum": "14559707269027860169",
+          "match": true
+        },
+        "O2-LTO": {
+          "available": true,
+          "checksum": "14559707269027860169",
+          "match": true
+        },
+        "O3-LTO": {
+          "available": true,
+          "checksum": "14559707269027860169",
+          "match": true
+        }
+      }
+    }
+  },
+  "builds": {
+    "arith": {
+      "O2": {
+        "flags": [
+          "-O2"
+        ],
+        "command": "cc -std=c11 -O2 -o /tmp/zen-flags-56esdkk9/arith-O2 /tmp/zen-flags-56esdkk9/arith.c",
+        "build_seconds": 0.039,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/arith-O2",
+        "binary_bytes": 16152,
+        "stderr": ""
+      },
+      "O3": {
+        "flags": [
+          "-O3"
+        ],
+        "command": "cc -std=c11 -O3 -o /tmp/zen-flags-56esdkk9/arith-O3 /tmp/zen-flags-56esdkk9/arith.c",
+        "build_seconds": 0.0359,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/arith-O3",
+        "binary_bytes": 16152,
+        "stderr": ""
+      },
+      "O2-LTO": {
+        "flags": [
+          "-O2",
+          "-flto"
+        ],
+        "command": "cc -std=c11 -O2 -flto -o /tmp/zen-flags-56esdkk9/arith-O2-LTO /tmp/zen-flags-56esdkk9/arith.c",
+        "build_seconds": 0.0603,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/arith-O2-LTO",
+        "binary_bytes": 16120,
+        "stderr": ""
+      },
+      "O3-LTO": {
+        "flags": [
+          "-O3",
+          "-flto"
+        ],
+        "command": "cc -std=c11 -O3 -flto -o /tmp/zen-flags-56esdkk9/arith-O3-LTO /tmp/zen-flags-56esdkk9/arith.c",
+        "build_seconds": 0.0609,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/arith-O3-LTO",
+        "binary_bytes": 16120,
+        "stderr": ""
+      }
+    },
+    "collatz": {
+      "O2": {
+        "flags": [
+          "-O2"
+        ],
+        "command": "cc -std=c11 -O2 -o /tmp/zen-flags-56esdkk9/collatz-O2 /tmp/zen-flags-56esdkk9/collatz.c",
+        "build_seconds": 0.0396,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/collatz-O2",
+        "binary_bytes": 16160,
+        "stderr": ""
+      },
+      "O3": {
+        "flags": [
+          "-O3"
+        ],
+        "command": "cc -std=c11 -O3 -o /tmp/zen-flags-56esdkk9/collatz-O3 /tmp/zen-flags-56esdkk9/collatz.c",
+        "build_seconds": 0.0381,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/collatz-O3",
+        "binary_bytes": 16160,
+        "stderr": ""
+      },
+      "O2-LTO": {
+        "flags": [
+          "-O2",
+          "-flto"
+        ],
+        "command": "cc -std=c11 -O2 -flto -o /tmp/zen-flags-56esdkk9/collatz-O2-LTO /tmp/zen-flags-56esdkk9/collatz.c",
+        "build_seconds": 0.0644,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/collatz-O2-LTO",
+        "binary_bytes": 16120,
+        "stderr": ""
+      },
+      "O3-LTO": {
+        "flags": [
+          "-O3",
+          "-flto"
+        ],
+        "command": "cc -std=c11 -O3 -flto -o /tmp/zen-flags-56esdkk9/collatz-O3-LTO /tmp/zen-flags-56esdkk9/collatz.c",
+        "build_seconds": 0.0646,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/collatz-O3-LTO",
+        "binary_bytes": 16120,
+        "stderr": ""
+      }
+    },
+    "mem": {
+      "O2": {
+        "flags": [
+          "-O2"
+        ],
+        "command": "cc -std=c11 -O2 -o /tmp/zen-flags-56esdkk9/mem-O2 /tmp/zen-flags-56esdkk9/mem.c",
+        "build_seconds": 0.0406,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/mem-O2",
+        "binary_bytes": 16256,
+        "stderr": ""
+      },
+      "O3": {
+        "flags": [
+          "-O3"
+        ],
+        "command": "cc -std=c11 -O3 -o /tmp/zen-flags-56esdkk9/mem-O3 /tmp/zen-flags-56esdkk9/mem.c",
+        "build_seconds": 0.0404,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/mem-O3",
+        "binary_bytes": 16256,
+        "stderr": ""
+      },
+      "O2-LTO": {
+        "flags": [
+          "-O2",
+          "-flto"
+        ],
+        "command": "cc -std=c11 -O2 -flto -o /tmp/zen-flags-56esdkk9/mem-O2-LTO /tmp/zen-flags-56esdkk9/mem.c",
+        "build_seconds": 0.0662,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/mem-O2-LTO",
+        "binary_bytes": 16224,
+        "stderr": ""
+      },
+      "O3-LTO": {
+        "flags": [
+          "-O3",
+          "-flto"
+        ],
+        "command": "cc -std=c11 -O3 -flto -o /tmp/zen-flags-56esdkk9/mem-O3-LTO /tmp/zen-flags-56esdkk9/mem.c",
+        "build_seconds": 0.0632,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/mem-O3-LTO",
+        "binary_bytes": 16224,
+        "stderr": ""
+      }
+    },
+    "sort": {
+      "O2": {
+        "flags": [
+          "-O2"
+        ],
+        "command": "cc -std=c11 -O2 -o /tmp/zen-flags-56esdkk9/sort-O2 /tmp/zen-flags-56esdkk9/sort.c",
+        "build_seconds": 0.0495,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/sort-O2",
+        "binary_bytes": 16288,
+        "stderr": ""
+      },
+      "O3": {
+        "flags": [
+          "-O3"
+        ],
+        "command": "cc -std=c11 -O3 -o /tmp/zen-flags-56esdkk9/sort-O3 /tmp/zen-flags-56esdkk9/sort.c",
+        "build_seconds": 0.0503,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/sort-O3",
+        "binary_bytes": 16256,
+        "stderr": ""
+      },
+      "O2-LTO": {
+        "flags": [
+          "-O2",
+          "-flto"
+        ],
+        "command": "cc -std=c11 -O2 -flto -o /tmp/zen-flags-56esdkk9/sort-O2-LTO /tmp/zen-flags-56esdkk9/sort.c",
+        "build_seconds": 0.0721,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/sort-O2-LTO",
+        "binary_bytes": 16280,
+        "stderr": ""
+      },
+      "O3-LTO": {
+        "flags": [
+          "-O3",
+          "-flto"
+        ],
+        "command": "cc -std=c11 -O3 -flto -o /tmp/zen-flags-56esdkk9/sort-O3-LTO /tmp/zen-flags-56esdkk9/sort.c",
+        "build_seconds": 0.0778,
+        "available": true,
+        "binary": "/tmp/zen-flags-56esdkk9/sort-O3-LTO",
+        "binary_bytes": 16224,
+        "stderr": ""
+      }
+    }
+  },
+  "passes": [
+    {
+      "pass": 1,
+      "loadavg_start": [
+        3.24658203125,
+        3.10791015625,
+        2.6171875
+      ],
+      "loadavg_end": [
+        3.54736328125,
+        3.1728515625,
+        2.64111328125
+      ],
+      "benchmarks": {
+        "arith": {
+          "results": {
+            "O2": {
+              "samples_ns": [
+                43847000,
+                44165000,
+                44367001,
+                44317001,
+                44109000,
+                44368001,
+                44027000
+              ],
+              "median_ns": 44165000,
+              "min_ns": 43847000,
+              "max_ns": 44368001,
+              "mean_ns": 44171429,
+              "stdev_ns": 194992,
+              "mad_ns": 152001,
+              "wall_median_ns": 65446510,
+              "binary_bytes": 16152
+            },
+            "O3": {
+              "samples_ns": [
+                44583000,
+                44553001,
+                44264000,
+                43959000,
+                44263000,
+                44829000,
+                47556000
+              ],
+              "median_ns": 44553001,
+              "min_ns": 43959000,
+              "max_ns": 47556000,
+              "mean_ns": 44858143,
+              "stdev_ns": 1222276,
+              "mad_ns": 289001,
+              "wall_median_ns": 65672535,
+              "binary_bytes": 16152
+            },
+            "O2-LTO": {
+              "samples_ns": [
+                44173000,
+                44570000,
+                44788000,
+                44128000,
+                44279000,
+                46241000,
+                43971000
+              ],
+              "median_ns": 44279000,
+              "min_ns": 43971000,
+              "max_ns": 46241000,
+              "mean_ns": 44592857,
+              "stdev_ns": 778091,
+              "mad_ns": 291000,
+              "wall_median_ns": 65642758,
+              "binary_bytes": 16120
+            },
+            "O3-LTO": {
+              "samples_ns": [
+                43901000,
+                43858000,
+                44160999,
+                44106999,
+                44826000,
+                45091999,
+                43658000
+              ],
+              "median_ns": 44106999,
+              "min_ns": 43658000,
+              "max_ns": 45091999,
+              "mean_ns": 44228999,
+              "stdev_ns": 531028,
+              "mad_ns": 248999,
+              "wall_median_ns": 65513786,
+              "binary_bytes": 16120
+            }
+          },
+          "schedule": [
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ]
+          ]
+        },
+        "collatz": {
+          "results": {
+            "O2": {
+              "samples_ns": [
+                39226000,
+                38943001,
+                38898000,
+                38613000,
+                40140999,
+                38868000,
+                39091000
+              ],
+              "median_ns": 38943001,
+              "min_ns": 38613000,
+              "max_ns": 40140999,
+              "mean_ns": 39111428,
+              "stdev_ns": 492471,
+              "mad_ns": 147999,
+              "wall_median_ns": 65732918,
+              "binary_bytes": 16160
+            },
+            "O3": {
+              "samples_ns": [
+                37636000,
+                37555999,
+                37823000,
+                37520000,
+                37962001,
+                38004000,
+                37737000
+              ],
+              "median_ns": 37737000,
+              "min_ns": 37520000,
+              "max_ns": 38004000,
+              "mean_ns": 37748285,
+              "stdev_ns": 190818,
+              "mad_ns": 181001,
+              "wall_median_ns": 65651916,
+              "binary_bytes": 16160
+            },
+            "O2-LTO": {
+              "samples_ns": [
+                38471000,
+                38781001,
+                38722999,
+                39334000,
+                39366000,
+                38641000,
+                44465000
+              ],
+              "median_ns": 38781001,
+              "min_ns": 38471000,
+              "max_ns": 44465000,
+              "mean_ns": 39683000,
+              "stdev_ns": 2136185,
+              "mad_ns": 310001,
+              "wall_median_ns": 65539414,
+              "binary_bytes": 16120
+            },
+            "O3-LTO": {
+              "samples_ns": [
+                37811000,
+                37662999,
+                37618001,
+                37711000,
+                37496000,
+                37752000,
+                37927000
+              ],
+              "median_ns": 37711000,
+              "min_ns": 37496000,
+              "max_ns": 37927000,
+              "mean_ns": 37711142,
+              "stdev_ns": 138753,
+              "mad_ns": 92999,
+              "wall_median_ns": 65559232,
+              "binary_bytes": 16120
+            }
+          },
+          "schedule": [
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ]
+          ]
+        },
+        "mem": {
+          "results": {
+            "O2": {
+              "samples_ns": [
+                20685000,
+                21457000,
+                20563000,
+                20354000,
+                20371000,
+                20128001,
+                21421000
+              ],
+              "median_ns": 20563000,
+              "min_ns": 20128001,
+              "max_ns": 21457000,
+              "mean_ns": 20711285,
+              "stdev_ns": 526961,
+              "mad_ns": 209000,
+              "wall_median_ns": 33354239,
+              "binary_bytes": 16256
+            },
+            "O3": {
+              "samples_ns": [
+                20522000,
+                20681000,
+                20348000,
+                20467000,
+                21248000,
+                20890000,
+                22689000
+              ],
+              "median_ns": 20681000,
+              "min_ns": 20348000,
+              "max_ns": 22689000,
+              "mean_ns": 20977857,
+              "stdev_ns": 812642,
+              "mad_ns": 214000,
+              "wall_median_ns": 33508208,
+              "binary_bytes": 16256
+            },
+            "O2-LTO": {
+              "samples_ns": [
+                20494000,
+                20745000,
+                20305000,
+                20965000,
+                20625000,
+                20576000,
+                20115000
+              ],
+              "median_ns": 20576000,
+              "min_ns": 20115000,
+              "max_ns": 20965000,
+              "mean_ns": 20546428,
+              "stdev_ns": 279537,
+              "mad_ns": 169000,
+              "wall_median_ns": 33472722,
+              "binary_bytes": 16224
+            },
+            "O3-LTO": {
+              "samples_ns": [
+                20467000,
+                20811000,
+                20333000,
+                20812000,
+                21144000,
+                20458999,
+                20224000
+              ],
+              "median_ns": 20467000,
+              "min_ns": 20224000,
+              "max_ns": 21144000,
+              "mean_ns": 20607142,
+              "stdev_ns": 325391,
+              "mad_ns": 243000,
+              "wall_median_ns": 33479734,
+              "binary_bytes": 16224
+            }
+          },
+          "schedule": [
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ]
+          ]
+        },
+        "sort": {
+          "results": {
+            "O2": {
+              "samples_ns": [
+                29132000,
+                35397001,
+                29947001,
+                30134000,
+                29340000,
+                31937001,
+                33643000
+              ],
+              "median_ns": 30134000,
+              "min_ns": 29132000,
+              "max_ns": 35397001,
+              "mean_ns": 31361429,
+              "stdev_ns": 2393964,
+              "mad_ns": 1002000,
+              "wall_median_ns": 33624415,
+              "binary_bytes": 16288
+            },
+            "O3": {
+              "samples_ns": [
+                28373000,
+                29436000,
+                27747000,
+                30435000,
+                29980000,
+                30264000,
+                31428000
+              ],
+              "median_ns": 29980000,
+              "min_ns": 27747000,
+              "max_ns": 31428000,
+              "mean_ns": 29666142,
+              "stdev_ns": 1262241,
+              "mad_ns": 544000,
+              "wall_median_ns": 33432966,
+              "binary_bytes": 16256
+            },
+            "O2-LTO": {
+              "samples_ns": [
+                30116000,
+                33201000,
+                29436000,
+                29455000,
+                34227000,
+                31459000,
+                29119999
+              ],
+              "median_ns": 30116000,
+              "min_ns": 29119999,
+              "max_ns": 34227000,
+              "mean_ns": 31001999,
+              "stdev_ns": 2025568,
+              "mad_ns": 996001,
+              "wall_median_ns": 33529578,
+              "binary_bytes": 16280
+            },
+            "O3-LTO": {
+              "samples_ns": [
+                28450999,
+                30476999,
+                28419999,
+                29665000,
+                29462000,
+                32420999,
+                34737001
+              ],
+              "median_ns": 29665000,
+              "min_ns": 28419999,
+              "max_ns": 34737001,
+              "mean_ns": 30518999,
+              "stdev_ns": 2307231,
+              "mad_ns": 1214001,
+              "wall_median_ns": 33494071,
+              "binary_bytes": 16224
+            }
+          },
+          "schedule": [
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "pass": 2,
+      "loadavg_start": [
+        3.54736328125,
+        3.1728515625,
+        2.64111328125
+      ],
+      "loadavg_end": [
+        3.61767578125,
+        3.20068359375,
+        2.65576171875
+      ],
+      "benchmarks": {
+        "arith": {
+          "results": {
+            "O2": {
+              "samples_ns": [
+                44581000,
+                45546000,
+                44582000,
+                44448001,
+                44684000,
+                44073000,
+                44427000
+              ],
+              "median_ns": 44581000,
+              "min_ns": 44073000,
+              "max_ns": 45546000,
+              "mean_ns": 44620143,
+              "stdev_ns": 452875,
+              "mad_ns": 132999,
+              "wall_median_ns": 65430950,
+              "binary_bytes": 16152
+            },
+            "O3": {
+              "samples_ns": [
+                44705000,
+                45118000,
+                44363000,
+                43986000,
+                44669000,
+                44387000,
+                44608000
+              ],
+              "median_ns": 44608000,
+              "min_ns": 43986000,
+              "max_ns": 45118000,
+              "mean_ns": 44548000,
+              "stdev_ns": 352084,
+              "mad_ns": 221000,
+              "wall_median_ns": 65575632,
+              "binary_bytes": 16152
+            },
+            "O2-LTO": {
+              "samples_ns": [
+                44298000,
+                45004001,
+                44149000,
+                44534000,
+                44715000,
+                45277000,
+                44565000
+              ],
+              "median_ns": 44565000,
+              "min_ns": 44149000,
+              "max_ns": 45277000,
+              "mean_ns": 44648857,
+              "stdev_ns": 391204,
+              "mad_ns": 267000,
+              "wall_median_ns": 65519146,
+              "binary_bytes": 16120
+            },
+            "O3-LTO": {
+              "samples_ns": [
+                44362000,
+                45256999,
+                44435000,
+                44078999,
+                44147000,
+                44416000,
+                44294000
+              ],
+              "median_ns": 44362000,
+              "min_ns": 44078999,
+              "max_ns": 45256999,
+              "mean_ns": 44427142,
+              "stdev_ns": 389551,
+              "mad_ns": 73000,
+              "wall_median_ns": 65523183,
+              "binary_bytes": 16120
+            }
+          },
+          "schedule": [
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ]
+          ]
+        },
+        "collatz": {
+          "results": {
+            "O2": {
+              "samples_ns": [
+                38994000,
+                39686000,
+                39161000,
+                39664000,
+                38753999,
+                39015000,
+                39459999
+              ],
+              "median_ns": 39161000,
+              "min_ns": 38753999,
+              "max_ns": 39686000,
+              "mean_ns": 39247714,
+              "stdev_ns": 360613,
+              "mad_ns": 298999,
+              "wall_median_ns": 65691620,
+              "binary_bytes": 16160
+            },
+            "O3": {
+              "samples_ns": [
+                37347000,
+                38183000,
+                37081000,
+                37721000,
+                37690001,
+                38252000,
+                36918000
+              ],
+              "median_ns": 37690001,
+              "min_ns": 36918000,
+              "max_ns": 38252000,
+              "mean_ns": 37598857,
+              "stdev_ns": 514169,
+              "mad_ns": 492999,
+              "wall_median_ns": 65500711,
+              "binary_bytes": 16160
+            },
+            "O2-LTO": {
+              "samples_ns": [
+                38265000,
+                39225000,
+                38988000,
+                38840000,
+                39026999,
+                39223000,
+                39290001
+              ],
+              "median_ns": 39026999,
+              "min_ns": 38265000,
+              "max_ns": 39290001,
+              "mean_ns": 38979714,
+              "stdev_ns": 353145,
+              "mad_ns": 196001,
+              "wall_median_ns": 65531299,
+              "binary_bytes": 16120
+            },
+            "O3-LTO": {
+              "samples_ns": [
+                38129000,
+                38674000,
+                37952000,
+                37967000,
+                37861001,
+                37688000,
+                37971000
+              ],
+              "median_ns": 37967000,
+              "min_ns": 37688000,
+              "max_ns": 38674000,
+              "mean_ns": 38034571,
+              "stdev_ns": 311835,
+              "mad_ns": 105999,
+              "wall_median_ns": 65542921,
+              "binary_bytes": 16120
+            }
+          },
+          "schedule": [
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ]
+          ]
+        },
+        "mem": {
+          "results": {
+            "O2": {
+              "samples_ns": [
+                20481000,
+                20820000,
+                20909000,
+                20406000,
+                20624000,
+                20163000,
+                20191000
+              ],
+              "median_ns": 20481000,
+              "min_ns": 20163000,
+              "max_ns": 20909000,
+              "mean_ns": 20513428,
+              "stdev_ns": 289263,
+              "mad_ns": 290000,
+              "wall_median_ns": 33266123,
+              "binary_bytes": 16256
+            },
+            "O3": {
+              "samples_ns": [
+                20267999,
+                20357000,
+                20026000,
+                21207000,
+                20600000,
+                20759000,
+                20592000
+              ],
+              "median_ns": 20592000,
+              "min_ns": 20026000,
+              "max_ns": 21207000,
+              "mean_ns": 20544142,
+              "stdev_ns": 380942,
+              "mad_ns": 235000,
+              "wall_median_ns": 33458885,
+              "binary_bytes": 16256
+            },
+            "O2-LTO": {
+              "samples_ns": [
+                20451999,
+                20611000,
+                20426000,
+                20681000,
+                20471999,
+                20926999,
+                20610000
+              ],
+              "median_ns": 20610000,
+              "min_ns": 20426000,
+              "max_ns": 20926999,
+              "mean_ns": 20596999,
+              "stdev_ns": 174266,
+              "mad_ns": 138001,
+              "wall_median_ns": 33278637,
+              "binary_bytes": 16224
+            },
+            "O3-LTO": {
+              "samples_ns": [
+                20304001,
+                20806000,
+                20442000,
+                20813000,
+                20377001,
+                22103000,
+                20820000
+              ],
+              "median_ns": 20806000,
+              "min_ns": 20304001,
+              "max_ns": 22103000,
+              "mean_ns": 20809286,
+              "stdev_ns": 612497,
+              "mad_ns": 364000,
+              "wall_median_ns": 33451992,
+              "binary_bytes": 16224
+            }
+          },
+          "schedule": [
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ]
+          ]
+        },
+        "sort": {
+          "results": {
+            "O2": {
+              "samples_ns": [
+                30285000,
+                28647001,
+                28538000,
+                30756000,
+                28576001,
+                28537000,
+                28324999
+              ],
+              "median_ns": 28576001,
+              "min_ns": 28324999,
+              "max_ns": 30756000,
+              "mean_ns": 29094857,
+              "stdev_ns": 988230,
+              "mad_ns": 71000,
+              "wall_median_ns": 33182617,
+              "binary_bytes": 16288
+            },
+            "O3": {
+              "samples_ns": [
+                33174000,
+                28803000,
+                28040000,
+                30146000,
+                28308000,
+                29355999,
+                28065001
+              ],
+              "median_ns": 28803000,
+              "min_ns": 28040000,
+              "max_ns": 33174000,
+              "mean_ns": 29413142,
+              "stdev_ns": 1824875,
+              "mad_ns": 737999,
+              "wall_median_ns": 33419732,
+              "binary_bytes": 16256
+            },
+            "O2-LTO": {
+              "samples_ns": [
+                28359000,
+                28398000,
+                29289999,
+                31906000,
+                28127999,
+                30726001,
+                28669999
+              ],
+              "median_ns": 28669999,
+              "min_ns": 28127999,
+              "max_ns": 31906000,
+              "mean_ns": 29353856,
+              "stdev_ns": 1430272,
+              "mad_ns": 542000,
+              "wall_median_ns": 33310446,
+              "binary_bytes": 16280
+            },
+            "O3-LTO": {
+              "samples_ns": [
+                28012001,
+                28324999,
+                28460001,
+                29992000,
+                28670000,
+                29004001,
+                28317001
+              ],
+              "median_ns": 28460001,
+              "min_ns": 28012001,
+              "max_ns": 29992000,
+              "mean_ns": 28682857,
+              "stdev_ns": 655588,
+              "mad_ns": 209999,
+              "wall_median_ns": 33364618,
+              "binary_bytes": 16224
+            }
+          },
+          "schedule": [
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ],
+            [
+              "O3",
+              "O2-LTO",
+              "O3-LTO",
+              "O2"
+            ],
+            [
+              "O2-LTO",
+              "O3-LTO",
+              "O2",
+              "O3"
+            ],
+            [
+              "O3-LTO",
+              "O2",
+              "O3",
+              "O2-LTO"
+            ],
+            [
+              "O2",
+              "O3",
+              "O2-LTO",
+              "O3-LTO"
+            ]
+          ]
+        }
+      }
+    }
+  ],
+  "notes": [
+    "Zen comparte el backend C11 con C; este estudio mide los flags del backend.",
+    "No se declara superioridad; las cifras son de este host y estas cargas.",
+    "Los checksums se verifican antes de medir."
+  ],
+  "analysis": {
+    "arith": {
+      "O2": {
+        "ratio_pass1": 1.0,
+        "ratio_pass2": 1.0,
+        "improvement_pct_pass1": 0.0,
+        "improvement_pct_pass2": 0.0,
+        "improvement_pct_mean": 0.0,
+        "pass_spread_pct": 0.0,
+        "within_pass_cv_pct_max": 1.02,
+        "consistent_gt_threshold": false,
+        "any_slowdown": false,
+        "material_regression": false
+      },
+      "O3": {
+        "ratio_pass1": 1.0088,
+        "ratio_pass2": 1.0006,
+        "improvement_pct_pass1": -0.88,
+        "improvement_pct_pass2": -0.06,
+        "improvement_pct_mean": -0.47,
+        "pass_spread_pct": 0.81,
+        "within_pass_cv_pct_max": 2.74,
+        "consistent_gt_threshold": false,
+        "any_slowdown": true,
+        "material_regression": false
+      },
+      "O2-LTO": {
+        "ratio_pass1": 1.0026,
+        "ratio_pass2": 0.9996,
+        "improvement_pct_pass1": -0.26,
+        "improvement_pct_pass2": 0.04,
+        "improvement_pct_mean": -0.11,
+        "pass_spread_pct": 0.29,
+        "within_pass_cv_pct_max": 1.76,
+        "consistent_gt_threshold": false,
+        "any_slowdown": true,
+        "material_regression": false
+      },
+      "O3-LTO": {
+        "ratio_pass1": 0.9987,
+        "ratio_pass2": 0.9951,
+        "improvement_pct_pass1": 0.13,
+        "improvement_pct_pass2": 0.49,
+        "improvement_pct_mean": 0.31,
+        "pass_spread_pct": 0.36,
+        "within_pass_cv_pct_max": 1.2,
+        "consistent_gt_threshold": false,
+        "any_slowdown": false,
+        "material_regression": false
+      }
+    },
+    "collatz": {
+      "O2": {
+        "ratio_pass1": 1.0,
+        "ratio_pass2": 1.0,
+        "improvement_pct_pass1": 0.0,
+        "improvement_pct_pass2": 0.0,
+        "improvement_pct_mean": 0.0,
+        "pass_spread_pct": 0.0,
+        "within_pass_cv_pct_max": 1.26,
+        "consistent_gt_threshold": false,
+        "any_slowdown": false,
+        "material_regression": false
+      },
+      "O3": {
+        "ratio_pass1": 0.969,
+        "ratio_pass2": 0.9624,
+        "improvement_pct_pass1": 3.1,
+        "improvement_pct_pass2": 3.76,
+        "improvement_pct_mean": 3.43,
+        "pass_spread_pct": 0.68,
+        "within_pass_cv_pct_max": 1.36,
+        "consistent_gt_threshold": true,
+        "any_slowdown": false,
+        "material_regression": false
+      },
+      "O2-LTO": {
+        "ratio_pass1": 0.9958,
+        "ratio_pass2": 0.9966,
+        "improvement_pct_pass1": 0.42,
+        "improvement_pct_pass2": 0.34,
+        "improvement_pct_mean": 0.38,
+        "pass_spread_pct": 0.07,
+        "within_pass_cv_pct_max": 5.51,
+        "consistent_gt_threshold": false,
+        "any_slowdown": false,
+        "material_regression": false
+      },
+      "O3-LTO": {
+        "ratio_pass1": 0.9684,
+        "ratio_pass2": 0.9695,
+        "improvement_pct_pass1": 3.16,
+        "improvement_pct_pass2": 3.05,
+        "improvement_pct_mean": 3.11,
+        "pass_spread_pct": 0.12,
+        "within_pass_cv_pct_max": 0.82,
+        "consistent_gt_threshold": true,
+        "any_slowdown": false,
+        "material_regression": false
+      }
+    },
+    "mem": {
+      "O2": {
+        "ratio_pass1": 1.0,
+        "ratio_pass2": 1.0,
+        "improvement_pct_pass1": 0.0,
+        "improvement_pct_pass2": 0.0,
+        "improvement_pct_mean": 0.0,
+        "pass_spread_pct": 0.0,
+        "within_pass_cv_pct_max": 2.56,
+        "consistent_gt_threshold": false,
+        "any_slowdown": false,
+        "material_regression": false
+      },
+      "O3": {
+        "ratio_pass1": 1.0057,
+        "ratio_pass2": 1.0054,
+        "improvement_pct_pass1": -0.57,
+        "improvement_pct_pass2": -0.54,
+        "improvement_pct_mean": -0.56,
+        "pass_spread_pct": 0.03,
+        "within_pass_cv_pct_max": 3.93,
+        "consistent_gt_threshold": false,
+        "any_slowdown": true,
+        "material_regression": false
+      },
+      "O2-LTO": {
+        "ratio_pass1": 1.0006,
+        "ratio_pass2": 1.0063,
+        "improvement_pct_pass1": -0.06,
+        "improvement_pct_pass2": -0.63,
+        "improvement_pct_mean": -0.35,
+        "pass_spread_pct": 0.56,
+        "within_pass_cv_pct_max": 1.36,
+        "consistent_gt_threshold": false,
+        "any_slowdown": true,
+        "material_regression": false
+      },
+      "O3-LTO": {
+        "ratio_pass1": 0.9953,
+        "ratio_pass2": 1.0159,
+        "improvement_pct_pass1": 0.47,
+        "improvement_pct_pass2": -1.59,
+        "improvement_pct_mean": -0.56,
+        "pass_spread_pct": 2.04,
+        "within_pass_cv_pct_max": 2.94,
+        "consistent_gt_threshold": false,
+        "any_slowdown": true,
+        "material_regression": false
+      }
+    },
+    "sort": {
+      "O2": {
+        "ratio_pass1": 1.0,
+        "ratio_pass2": 1.0,
+        "improvement_pct_pass1": 0.0,
+        "improvement_pct_pass2": 0.0,
+        "improvement_pct_mean": 0.0,
+        "pass_spread_pct": 0.0,
+        "within_pass_cv_pct_max": 7.94,
+        "consistent_gt_threshold": false,
+        "any_slowdown": false,
+        "material_regression": false
+      },
+      "O3": {
+        "ratio_pass1": 0.9949,
+        "ratio_pass2": 1.0079,
+        "improvement_pct_pass1": 0.51,
+        "improvement_pct_pass2": -0.79,
+        "improvement_pct_mean": -0.14,
+        "pass_spread_pct": 1.3,
+        "within_pass_cv_pct_max": 6.34,
+        "consistent_gt_threshold": false,
+        "any_slowdown": true,
+        "material_regression": false
+      },
+      "O2-LTO": {
+        "ratio_pass1": 0.9994,
+        "ratio_pass2": 1.0033,
+        "improvement_pct_pass1": 0.06,
+        "improvement_pct_pass2": -0.33,
+        "improvement_pct_mean": -0.13,
+        "pass_spread_pct": 0.39,
+        "within_pass_cv_pct_max": 6.73,
+        "consistent_gt_threshold": false,
+        "any_slowdown": true,
+        "material_regression": false
+      },
+      "O3-LTO": {
+        "ratio_pass1": 0.9844,
+        "ratio_pass2": 0.9959,
+        "improvement_pct_pass1": 1.56,
+        "improvement_pct_pass2": 0.41,
+        "improvement_pct_mean": 0.98,
+        "pass_spread_pct": 1.16,
+        "within_pass_cv_pct_max": 7.78,
+        "consistent_gt_threshold": false,
+        "any_slowdown": false,
+        "material_regression": false
+      }
+    }
+  },
+  "decision": {
+    "change_release_flags": false,
+    "recommended_variant": "O2",
+    "recommended_flags": [
+      "-O2"
+    ],
+    "criterion": "mejora >3 % frente a -O2 en las cuatro cargas y en ambas pasadas, sin regresi\u00f3n (ratio > 1.0)",
+    "qualifying": [],
+    "rejected": [
+      {
+        "variant": "O3",
+        "reason": "la mejora no es uniforme entre cargas",
+        "weakest_benchmark": "mem",
+        "weakest_benchmark_improvement_pct_mean": -0.56
+      },
+      {
+        "variant": "O2-LTO",
+        "reason": "la mejora no es uniforme entre cargas",
+        "weakest_benchmark": "mem",
+        "weakest_benchmark_improvement_pct_mean": -0.35
+      },
+      {
+        "variant": "O3-LTO",
+        "reason": "la mejora no es uniforme entre cargas",
+        "weakest_benchmark": "mem",
+        "weakest_benchmark_improvement_pct_mean": -0.56
+      }
+    ],
+    "reason": "ninguna variante cumple el criterio completo en todas las cargas"
+  },
+  "elapsed_seconds": 16.16,
+  "artifacts": {
+    "json": "/home/ferranfg/proyectos/ZenFerros/benchmarks/results/opt-flags.json",
+    "markdown": "/home/ferranfg/proyectos/ZenFerros/benchmarks/results/opt-flags.md",
+    "script": "/home/ferranfg/proyectos/ZenFerros/benchmarks/scripts/flags.py"
+  }
+}

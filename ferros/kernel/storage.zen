@@ -1,0 +1,76 @@
+// Minimal persistent boot counter on top of the ATA PIO driver.
+//
+// Sector 0 is the whole store (no filesystem, no journal, no cache):
+//   +0  8 bytes  magic "ZENPERS1"
+//   +8  u64 LE   boot counter
+//   +16 .. 511   zero (reserved)
+//
+// storage_boot() is called once from kernel_entry before the shell runs.  It
+// formats an unformatted disk with counter=1, increments a valid counter,
+// rewrites sector 0 and flushes it.  Any ATA failure is reported as
+// PERSIST: UNAVAILABLE and the boot continues; persistence is an optional
+// facility, never a reason to panic.
+
+fn storage_zero(buffer:u64) {
+    let mut index:u64=0;
+    while index<512u64 {
+        memory_write8(buffer+index,0u8);
+        index+=1u64;
+    }
+}
+
+fn storage_write_magic(buffer:u64) {
+    let magic:str="ZENPERS1";
+    let mut index:u64=0;
+    while index<8u64 {
+        memory_write8(buffer+index,str_byte(magic,index));
+        index+=1u64;
+    }
+}
+
+fn storage_has_magic(buffer:u64)->bool {
+    let magic:str="ZENPERS1";
+    let mut index:u64=0;
+    while index<8u64 {
+        if memory_read8(buffer+index)!=str_byte(magic,index) { return false; }
+        index+=1u64;
+    }
+    return true;
+}
+
+fn storage_unavailable() {
+    serial_write("PERSIST: UNAVAILABLE\n");
+}
+
+fn storage_boot() {
+    // One 512-byte supervisor buffer from the kernel heap.  The heap is
+    // initialized and self-tested earlier in kernel_entry.
+    let buffer:u64=heap_alloc(512u64,16u64);
+    if buffer==0u64 { storage_unavailable(); return; }
+    if ata_read_sector(0u64,buffer)<0i64 { storage_unavailable(); return; }
+
+    let mut counter:u64=0;
+    let mut format:bool=false;
+    if storage_has_magic(buffer) {
+        counter=memory_read64(buffer+8u64);
+        // A zero/corrupt counter cannot be incremented meaningfully; rebuild
+        // the superblock instead of wrapping to 0xffffffffffffffff.
+        if counter==0u64 || counter==0xffffffffffffffffu64 { format=true; }
+        else { counter+=1u64; }
+    } else {
+        format=true;
+    }
+
+    if format {
+        storage_zero(buffer);
+        storage_write_magic(buffer);
+        counter=1u64;
+    }
+    memory_store64(buffer+8u64,counter);
+    if ata_write_sector(0u64,buffer)<0i64 { storage_unavailable(); return; }
+    if ata_flush()<0i64 { storage_unavailable(); return; }
+
+    serial_write("PERSIST: BOOT ");
+    serial_uint(counter);
+    serial_write("\n");
+}

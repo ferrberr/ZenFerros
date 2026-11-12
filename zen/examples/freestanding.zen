@@ -1,0 +1,18 @@
+// Freestanding Zen. emit_byte is supplied by the caller, not libc.
+// The Linux test adapter uses syscalls; Ferros will provide a serial port helper.
+extern "C" {
+    fn emit_byte(value: u8);
+}
+
+fn write_message(message: str) {
+    let mut index: u64 = 0;
+    while index < str_len(message) {
+        unsafe { emit_byte(str_byte(message, index)); }
+        index += 1;
+    }
+}
+
+pub fn kernel_entry() -> i32 {
+    write_message("Zen freestanding OK\n");
+    return 0;
+}

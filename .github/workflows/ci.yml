@@ -1,0 +1,105 @@
+# Workflow de CI remoto de ZenFerros (TASK-918).
+#
+# Estado: plantilla versionada que NO se ha ejecutado en GitHub desde este
+# repositorio local (no hay .git ni remoto). Lo que si esta verificado es su
+# estructura, con `python3 infrastructure/scripts/check_ci_workflow.py` y con el
+# paso de validacion que hay mas abajo. Ver docs/ci-remote.md.
+#
+# Objetivo: ejecutar la matriz local de TASK-911 (ci_matrix.py) en un runner
+# Linux alojado, con el toolchain provisionado, y publicar el resumen JSON como
+# artefacto. La matriz sigue siendo la fuente de verdad: el workflow no cambia
+# ni sustituye verify_all.py, stress.py ni repro_build.py.
+name: ci-remoto
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# CARGO_HOME vive dentro del workspace para que la cache de Cargo y
+# `cargo fetch` apunten al mismo registro que usa la matriz (--offline).
+env:
+  CARGO_HOME: ${{ github.workspace }}/.cargo
+  CARGO_TERM_COLOR: never
+  PYTHONDONTWRITEBYTECODE: "1"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  matriz:
+    name: Matriz ZenFerros
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Python del sistema
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validar el workflow (estructura)
+        run: python3 infrastructure/scripts/check_ci_workflow.py
+
+      - name: Rust estable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Dependencias del sistema (GCC y QEMU)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential qemu-system-x86
+          gcc --version | head -n 1
+          qemu-system-x86_64 --version | head -n 1
+
+      - name: Cache de Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cargo/registry
+            .cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('zen/compiler/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      # La matriz ejecuta Cargo con --offline: el registro debe poblarse antes.
+      # Este paso necesita red una vez; despues basta la cache.
+      - name: Poblar registro offline de Cargo
+        run: cargo fetch --locked --manifest-path zen/compiler/Cargo.toml
+
+      - name: Matriz rapida (pull request)
+        if: github.event_name == 'pull_request'
+        run: python3 infrastructure/scripts/ci_matrix.py --quick --json "$RUNNER_TEMP/ci-matrix.json"
+
+      - name: Matriz completa (main y manual)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: python3 infrastructure/scripts/ci_matrix.py --full --json "$RUNNER_TEMP/ci-matrix.json"
+
+      # El JSON se escribe en $RUNNER_TEMP, nunca en el repositorio. El
+      # artefacto es evidencia de la ejecucion, no una atestacion firmada.
+      - name: Subir resumen JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-matrix-json
+          path: ${{ runner.temp }}/ci-matrix.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Subir logs de la matriz
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-matrix-logs
+          path: /tmp/zenferros-ci-*/
+          if-no-files-found: ignore
+          retention-days: 14

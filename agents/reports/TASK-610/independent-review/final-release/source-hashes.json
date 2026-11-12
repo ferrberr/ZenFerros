@@ -1,0 +1,8 @@
+{
+  "ferros/kernel/scheduler.zen": "51d3e97ec58f96fca94eaf1fb86a32d059d77d6aea5357bc9621f3132a50c798",
+  "ferros/kernel/arch/x86_64/context.S": "eb4d40c8f2decad7d0e85f68b6fd9c58166010248c0d0706723a77077abb0c91",
+  "ferros/kernel/memory.zen": "40eb94b7d75aa75d5eb1f428b6399fdd7f8ab4c2d092052dac9e928fc3ef9ff1",
+  "ferros/kernel/interrupts.zen": "85ba76758fa082f414e95d06bf9794c6f1ca9659eb51bee1c56d96528f894c9a",
+  "infrastructure/scripts/build_ferros.py": "85f70c84f3df24e1ad7808b7284fb72b8eab1c514c5cea71cb7f43b81da28ac2",
+  "infrastructure/scripts/boot_ferros.py": "cd48dc8ac40879b4fe51725957a35e5f838e90494f289b7d2e0fe2bae4494b90"
+}

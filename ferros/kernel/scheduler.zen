@@ -1,0 +1,242 @@
+// Single-CPU scheduler. All state mutations and switches require IF=0.
+// One linker-reserved 4096-byte BSS page; no allocation or worker I/O.
+// Header u64 slots: 0 initialized, 8 active, 16 current ID, 24 switches,
+// 32 actual worker-to-different-worker timer preemptions, 40 yield calls,
+// 48 completions, 56 active timer IRQs, 64 failures, 72 initial IRQ ticks.
+// Records at 128+id*128, IDs 0(controller)..3:
+// +0 saved RSP, +8 state(READY=1 RUNNING=2 EXITED=3 BLOCKED=4),
+// +16 progress, +24 hash, +32 successful context probes, +40 canary,
+// +48 usable stack low, +56 stack top. Remaining slots are reserved/zero.
+// Each worker owns a 4KiB absent guard followed by a 32KiB static stack.
+// Initial frame, top-64: r15,r14,r13,r12=id,rbx,rbp,trampoline,dummy.
+// Context switch pops six callee-saved GPRs and ret enters trampoline with
+// RSP%16=8. Timer switches retain the complete ISR frame on its owner stack.
+
+fn scheduler_get(offset:u64)->u64 {
+    unsafe { return volatile_load((ferros_scheduler_state()+offset) as *u64); }
+}
+fn scheduler_set(offset:u64,value:u64) {
+    unsafe { volatile_store((ferros_scheduler_state()+offset) as *mut u64,value); }
+}
+fn thread_get(id:u64,offset:u64)->u64 { return scheduler_get(128+id*128+offset); }
+fn thread_set(id:u64,offset:u64,value:u64) { scheduler_set(128+id*128+offset,value); }
+fn scheduler_active()->bool { return scheduler_get(8)==1; }
+fn scheduler_fail() {
+    scheduler_set(64,scheduler_get(64)+1);
+    kernel_panic("invalid thread scheduler state");
+}
+fn scheduler_canary(id:u64)->u64 { return 0x5a17c0de42b60000u64+id; }
+fn scheduler_stack_valid(id:u64)->bool {
+    if id<1 || id>3 { return false; }
+    let low:u64=thread_get(id,48);
+    let top:u64=thread_get(id,56);
+    unsafe {
+        if low!=ferros_thread_stack_guard(id)+4096 || top!=ferros_thread_stack_top(id) { return false; }
+        if top-low!=32768 || (low & 4095u64)!=0 || (top & 15u64)!=0 { return false; }
+        let rsp:u64=thread_get(id,0);
+        if rsp<low+8 || rsp>top-56 || (rsp & 7u64)!=0 { return false; }
+        return thread_get(id,40)==scheduler_canary(id) && volatile_load(low as *u64)==scheduler_canary(id);
+    }
+}
+fn scheduler_running_valid()->bool {
+    if scheduler_get(0)!=1 || !scheduler_active() || thread_get(0,8)!=4 { return false; }
+    let current:u64=scheduler_get(16);
+    if current<1 || current>3 || thread_get(current,8)!=2 { return false; }
+    let mut id:u64=1;
+    while id<=3 {
+        let state:u64=thread_get(id,8);
+        if !scheduler_stack_valid(id) { return false; }
+        if id!=current && state!=1 && state!=3 { return false; }
+        id+=1;
+    }
+    return true;
+}
+// Pure round-robin choice: controller is not in the ready-worker ring.
+// Zero means no other READY worker. EXITED/BLOCKED are never selected.
+fn scheduler_next_ready(current:u64)->u64 {
+    let mut distance:u64=1;
+    while distance<=3 {
+        let candidate:u64=((current+distance-1)%3)+1;
+        if candidate!=current && thread_get(candidate,8)==1 { return candidate; }
+        distance+=1;
+    }
+    return 0;
+}
+fn scheduler_init()->bool {
+    unsafe {
+        let flags:u64=ferros_irq_save();
+        if scheduler_get(0)!=0 { ferros_irq_restore(flags); return false; }
+        let mut offset:u64=0;
+        while offset<4096 { scheduler_set(offset,0); offset+=8; }
+        let mut id:u64=1;
+        while id<=3 {
+            let guard:u64=ferros_thread_stack_guard(id);
+            let top:u64=ferros_thread_stack_top(id);
+            if (guard & 4095u64)!=0 || top!=guard+36864 || (top & 15u64)!=0 {
+                ferros_irq_restore(flags); return false;
+            }
+            if !vmm_guard_page(guard) { ferros_irq_restore(flags); return false; }
+            let low:u64=guard+4096;
+            let rsp:u64=top-64;
+            volatile_store(low as *mut u64,scheduler_canary(id));
+            let mut frame_offset:u64=0;
+            while frame_offset<64 { volatile_store((rsp+frame_offset) as *mut u64,0u64); frame_offset+=8; }
+            volatile_store((rsp+24) as *mut u64,id);
+            volatile_store((rsp+48) as *mut u64,ferros_thread_trampoline());
+            thread_set(id,0,rsp); thread_set(id,8,1);
+            thread_set(id,24,id); thread_set(id,40,scheduler_canary(id));
+            thread_set(id,48,low); thread_set(id,56,top);
+            id+=1;
+        }
+        thread_set(0,8,2);
+        scheduler_set(0,1);
+        ferros_irq_restore(flags);
+    }
+    return true;
+}
+// Caller has validated both states and established the outgoing state.
+fn scheduler_switch(old:u64,next:u64) {
+    scheduler_set(16,next);
+    thread_set(next,8,2);
+    scheduler_set(24,scheduler_get(24)+1);
+    unsafe { ferros_context_switch(ferros_scheduler_state()+128+old*128,thread_get(next,0)); }
+}
+fn scheduler_yield() {
+    unsafe {
+        let flags:u64=ferros_irq_save();
+        if !scheduler_running_valid() { scheduler_fail(); return; }
+        scheduler_set(40,scheduler_get(40)+1);
+        let old:u64=scheduler_get(16);
+        let next:u64=scheduler_next_ready(old);
+        if next!=0 { thread_set(old,8,1); scheduler_switch(old,next); }
+        if !scheduler_running_valid() || scheduler_get(16)!=old { scheduler_fail(); return; }
+        ferros_irq_restore(flags);
+    }
+}
+fn scheduler_on_timer() {
+    // Root IRQ dispatcher has already sent EOI and retains IF=0.
+    unsafe {
+        let flags:u64=ferros_irq_save();
+        if !scheduler_active() { ferros_irq_restore(flags); return; }
+        scheduler_set(56,scheduler_get(56)+1);
+        if !scheduler_running_valid() { scheduler_fail(); return; }
+        let old:u64=scheduler_get(16);
+        let next:u64=scheduler_next_ready(old);
+        if next!=0 {
+            scheduler_set(32,scheduler_get(32)+1);
+            thread_set(old,8,1); scheduler_switch(old,next);
+        }
+        if !scheduler_running_valid() || scheduler_get(16)!=old { scheduler_fail(); return; }
+        ferros_irq_restore(flags);
+    }
+}
+fn scheduler_exit() {
+    unsafe {
+        let flags:u64=ferros_irq_save();
+        if !scheduler_running_valid() { scheduler_fail(); return; }
+        let old:u64=scheduler_get(16);
+        let next:u64=scheduler_next_ready(old);
+        thread_set(old,8,3);
+        scheduler_set(48,scheduler_get(48)+1);
+        if next!=0 { scheduler_switch(old,next); }
+        else {
+            if scheduler_get(48)!=3 { scheduler_fail(); return; }
+            // Controller alone becomes runnable after every worker has exited.
+            scheduler_set(8,0);
+            scheduler_switch(old,0);
+        }
+        // An EXITED stack must never resume, even with its original flags.
+        ferros_irq_restore(flags & ~512u64);
+        scheduler_fail();
+    }
+}
+fn scheduler_probe(id:u64)->bool {
+    unsafe {
+        let flags:u64=ferros_irq_save();
+        if !scheduler_running_valid() || scheduler_get(16)!=id { scheduler_fail(); return false; }
+        let ok:u64=ferros_context_probe();
+        if ok!=1 || !scheduler_running_valid() || scheduler_get(16)!=id { scheduler_fail(); return false; }
+        thread_set(id,32,thread_get(id,32)+1);
+        ferros_irq_restore(flags);
+    }
+    return true;
+}
+fn scheduler_work(id:u64,round:u64)->u64 {
+    let mut value:u64=id*101+round;
+    let mut step:u64=0;
+    while step<2048 { value=(value*17+step+id)%65521; step+=1; }
+    return value;
+}
+fn scheduler_expected_hash(id:u64)->u64 {
+    let mut hash:u64=id;
+    let mut round:u64=0;
+    while round<8 { hash=hash*33+scheduler_work(id,round); round+=1; }
+    return hash;
+}
+pub fn thread_entry(id:u64) {
+    unsafe {
+        ferros_irq_save();
+        if id<1 || id>3 || scheduler_get(16)!=id || !scheduler_running_valid() { scheduler_fail(); return; }
+        // New frames start with IF=0. Ordinary worker execution allows IRQ0.
+        ferros_irq_restore(512);
+    }
+    let local_canary:u64=scheduler_canary(id);
+    let mut hash:u64=id;
+    let mut round:u64=0;
+    if id==1 {
+        // No cooperative switch can pass this gate: threads2/3 must run via PIT.
+        while thread_get(2,16)==0 || thread_get(3,16)==0 { }
+    }
+    while round<8 {
+        unsafe {
+            let flags:u64=ferros_irq_save();
+            if !scheduler_running_valid() || scheduler_get(16)!=id || thread_get(id,16)!=round || thread_get(id,24)!=hash || thread_get(id,40)!=local_canary {
+                scheduler_fail(); return;
+            }
+            ferros_irq_restore(flags);
+        }
+        hash=hash*33+scheduler_work(id,round);
+        round+=1;
+        unsafe {
+            let flags:u64=ferros_irq_save();
+            thread_set(id,16,round); thread_set(id,24,hash);
+            ferros_irq_restore(flags);
+        }
+        if !scheduler_probe(id) { return; }
+        if id!=1 { scheduler_yield(); }
+    }
+    unsafe {
+        ferros_irq_save();
+        if !scheduler_running_valid() || scheduler_get(16)!=id || thread_get(id,16)!=8 || thread_get(id,24)!=hash || hash!=scheduler_expected_hash(id) || thread_get(id,40)!=local_canary {
+            scheduler_fail(); return;
+        }
+    }
+    scheduler_exit();
+    thread_returned();
+}
+pub fn thread_returned() {
+    unsafe { ferros_irq_save(); }
+    scheduler_set(64,scheduler_get(64)+1);
+    kernel_panic("thread entry returned");
+}
+fn scheduler_self_test()->bool {
+    unsafe {
+        let flags:u64=ferros_irq_save();
+        if !scheduler_init() { ferros_irq_restore(flags); return false; }
+        scheduler_set(72,irq_get(16));
+        scheduler_timer_start();
+        scheduler_set(8,1); thread_set(0,8,4);
+        scheduler_switch(0,1);
+        // The last exit resumes this exact controller stack with IF=0.
+        scheduler_timer_stop();
+        let mut ok:bool=scheduler_get(0)==1 && !scheduler_active() && scheduler_get(16)==0 && thread_get(0,8)==2;
+        if scheduler_get(48)!=3 || scheduler_get(64)!=0 || scheduler_get(32)<2 || scheduler_get(40)!=16 || scheduler_get(24)<6 || scheduler_get(56)<8 || irq_get(16)-scheduler_get(72)!=scheduler_get(56) { ok=false; }
+        let mut id:u64=1;
+        while id<=3 {
+            if thread_get(id,8)!=3 || thread_get(id,16)!=8 || thread_get(id,24)!=scheduler_expected_hash(id) || thread_get(id,32)<8 || !scheduler_stack_valid(id) { ok=false; }
+            id+=1;
+        }
+        ferros_irq_restore(flags);
+        return ok;
+    }
+}

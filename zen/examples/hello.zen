@@ -1,0 +1,6 @@
+// Hello World en Zen MVP
+// Objetivo: programa mínimo que compila y ejecuta
+fn main() -> i32 {
+  print("Hello, Zen!\n");
+  return 0;
+}

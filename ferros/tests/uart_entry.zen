@@ -1,0 +1,19 @@
+// Host-safe Hito3 UART driver regression entry. Not part of kernel build.
+fn finish(status: u32) {
+    // QEMU isa-debug-exit test device: 0x10 -> process status 33, 0x11 -> 35.
+    unsafe { ferros_out32(0xf4u16, status); ferros_halt(); }
+}
+
+pub fn kernel_entry(magic: u64, multiboot_info: u64) {
+    if !serial_init() { finish(0x11u32); return; }
+    if magic != 0x2badb002u64 || multiboot_info == 0u64 {
+        serial_write("FERROS PANIC: invalid Multiboot handoff\n");
+        finish(0x11u32);
+        return;
+    }
+    if !serial_write("FERROS KERNEL\nPowered by Zen\nBoot successful\n") {
+        finish(0x11u32);
+        return;
+    }
+    finish(0x10u32);
+}

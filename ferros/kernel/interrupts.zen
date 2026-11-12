@@ -1,0 +1,132 @@
+// Explicit single-CPU interrupt state, eight-byte slots in reserved BSS.
+// 0=breakpoints 8=pagefaults 16=ticks 24=expected PF kind 40=timer armed
+// 48=unexpected count 56=breakpoint armed. IRQ gates keep IF clear in handlers.
+fn irq_get(offset:u64)->u64 {
+    unsafe { return volatile_load((ferros_interrupt_state()+offset) as *u64); }
+}
+fn irq_set(offset:u64,value:u64) {
+    unsafe { volatile_store((ferros_interrupt_state()+offset) as *mut u64,value); }
+}
+
+fn interrupts_init() {
+    unsafe {
+        ferros_interrupt_disable();
+        let state:u64=ferros_interrupt_state();
+        let mut offset:u64=0;
+        while offset<4096 { volatile_store((state+offset) as *mut u64,0u64); offset+=8; }
+        let idt:u64=ferros_idt_address();
+        let mut vector:u64=0;
+        while vector<256 {
+            let handler:u64=ferros_isr_address(vector);
+            let mut gate:u64=0x8e;
+            if vector==128 { gate=0xee; }
+            let low:u64=(handler & 65535u64) | (8u64 << 16) | (gate << 40) | ((handler & 0xffff0000u64) << 32);
+            volatile_store((idt+vector*16) as *mut u64,low);
+            volatile_store((idt+vector*16+8) as *mut u64,handler >> 32);
+            vector+=1;
+        }
+        ferros_load_idt(idt,4095u16);
+    }
+    // Legacy PIC remap: IRQ0..15 -> vector32..47; all initially masked.
+    out8(0x20u16,0x11u8); out8(0xa0u16,0x11u8);
+    out8(0x21u16,32u8); out8(0xa1u16,40u8);
+    out8(0x21u16,4u8); out8(0xa1u16,2u8);
+    out8(0x21u16,1u8); out8(0xa1u16,1u8);
+    out8(0x21u16,0xffu8); out8(0xa1u16,0xffu8);
+}
+
+pub fn interrupt_dispatch(vector:u64,error:u64,frame:u64,cr2:u64) {
+    if user_trap_origin(frame) {
+        if vector==32 && irq_get(40)==1 {
+            irq_set(16,irq_get(16)+1); out8(0x20u16,0x20u8);
+        } else if vector==32 {
+            kernel_panic("unarmed user timer interrupt"); return;
+        }
+        user_interrupt_dispatch(vector,error,frame,cr2); return;
+    }
+    if vector==3 && irq_get(56)==1 && error==0 {
+        irq_set(0,irq_get(0)+1); irq_set(56,0); return;
+    }
+    if vector==32 && irq_get(40)==1 {
+        irq_set(16,irq_get(16)+1);
+        // Acknowledge before switching: the suspended handler may resume much later.
+        out8(0x20u16,0x20u8);
+        scheduler_on_timer();
+        return;
+    }
+    if vector==14 {
+        if error==2 && thread_guard_address(cr2) {
+            kernel_panic("thread stack guard violation"); return;
+        }
+        unsafe {
+            // Reject an invalid frame before touching the saved instruction pointer.
+            if frame<ferros_text_start() || frame>ferros_kernel_end()-8 || (frame & 7u64)!=0 {
+                kernel_panic("invalid exception frame"); return;
+            }
+            let rip:u64=volatile_load(frame as *u64);
+            if irq_get(24)==1 && cr2==0 && error==0 && rip==ferros_null_fault_site() {
+                volatile_store(frame as *mut u64,ferros_null_fault_resume());
+                irq_set(8,irq_get(8)+1); irq_set(24,0); return;
+            }
+            if irq_get(24)==2 && cr2==ferros_ro_fault_address() && error==3 && rip==ferros_ro_fault_site() {
+                volatile_store(frame as *mut u64,ferros_ro_fault_resume());
+                irq_set(8,irq_get(8)+1); irq_set(24,0); return;
+            }
+        }
+    }
+    irq_set(48,irq_get(48)+1);
+    kernel_panic("unexpected interrupt or exception");
+}
+
+fn breakpoint_self_test()->bool {
+    irq_set(56,1);
+    unsafe { ferros_breakpoint(); }
+    return irq_get(0)==1 && irq_get(56)==0;
+}
+
+fn page_fault_self_test()->bool {
+    irq_set(24,1);
+    unsafe { ferros_probe_null(); }
+    if irq_get(8)!=1 || irq_get(24)!=0 { return false; }
+    irq_set(24,2);
+    unsafe { ferros_probe_write_ro(); }
+    return irq_get(8)==2 && irq_get(24)==0;
+}
+
+fn timer_self_test()->bool {
+    // PIT channel0, square wave, divisor11932 (~100Hz from1193182Hz input).
+    let divisor:u16=11932;
+    out8(0x43u16,0x36u8);
+    out8(0x40u16,divisor as u8);
+    out8(0x40u16,(divisor >> 8) as u8);
+    irq_set(40,1);
+    out8(0x21u16,0xfeu8);  // Only IRQ0 unmasked; slave stays masked.
+    while irq_get(16)<3 { unsafe { ferros_wait_interrupt(); } }
+    unsafe { ferros_interrupt_disable(); }
+    out8(0x21u16,0xffu8);
+    irq_set(40,0);
+    return irq_get(16)>=3 && irq_get(48)==0;
+}
+
+// Scheduler owns IF and calls these only while interrupts are disabled.
+fn scheduler_timer_start() {
+    let divisor:u16=11932;
+    out8(0x43u16,0x36u8);
+    out8(0x40u16,divisor as u8);
+    out8(0x40u16,(divisor >> 8) as u8);
+    irq_set(40,1);
+    out8(0xa1u16,0xffu8);
+    out8(0x21u16,0xfeu8);
+}
+fn scheduler_timer_stop() {
+    unsafe { ferros_interrupt_disable(); }
+    out8(0x21u16,0xffu8);
+    irq_set(40,0);
+}
+fn thread_guard_address(address:u64)->bool {
+    let page:u64=address & ~4095u64;
+    if page==0 { return false; }
+    unsafe {
+        return page==ferros_thread_stack_guard(1) || page==ferros_thread_stack_guard(2) || page==ferros_thread_stack_guard(3);
+    }
+}

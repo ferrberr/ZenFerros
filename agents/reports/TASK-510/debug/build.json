@@ -1,0 +1,72 @@
+{
+  "source_units": [
+    "arch/x86_64/abi.zen",
+    "drivers/serial.zen",
+    "memory.zen",
+    "interrupts.zen",
+    "runtime.zen",
+    "main.zen"
+  ],
+  "release": false,
+  "payload": {
+    "elf_class": 2,
+    "entry": "0x101000",
+    "multiboot_offset": 4096,
+    "bytes": 58352,
+    "load_segments": [
+      {
+        "address": 1048576,
+        "file_offset": 4096,
+        "file_bytes": 40960,
+        "memory_bytes": 40960,
+        "flags": 5
+      },
+      {
+        "address": 1089536,
+        "file_offset": 45056,
+        "file_bytes": 4096,
+        "memory_bytes": 4096,
+        "flags": 4
+      },
+      {
+        "address": 1093632,
+        "file_offset": 4096,
+        "file_bytes": 0,
+        "memory_bytes": 311296,
+        "flags": 6
+      }
+    ]
+  },
+  "image": {
+    "elf_class": 1,
+    "entry": "0x101000",
+    "multiboot_offset": 4096,
+    "bytes": 56364,
+    "load_segments": [
+      {
+        "address": 1048576,
+        "file_offset": 4096,
+        "file_bytes": 40960,
+        "memory_bytes": 40960,
+        "flags": 5
+      },
+      {
+        "address": 1089536,
+        "file_offset": 45056,
+        "file_bytes": 4096,
+        "memory_bytes": 4096,
+        "flags": 4
+      },
+      {
+        "address": 1093632,
+        "file_offset": 4096,
+        "file_bytes": 0,
+        "memory_bytes": 311296,
+        "flags": 6
+      }
+    ]
+  },
+  "build_seconds": 0.135725,
+  "image_path": "/home/ferranfg/proyectos/ZenFerros/ferros/build/debug/ferros-multiboot.elf",
+  "undefined_symbols": 0
+}

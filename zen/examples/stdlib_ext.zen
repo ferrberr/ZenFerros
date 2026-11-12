@@ -1,0 +1,85 @@
+// TASK-901B: prefix/suffix and reverse-search builtins for immutable `str`
+// views. Everything is byte-oriented, allocation-free and bounds-checked.
+
+fn show_bool(value: bool) -> void {
+    if value {
+        print("true");
+    } else {
+        print("false");
+    }
+    print("\n");
+}
+
+fn show_int(value: i64) -> void {
+    print_int(value);
+    print("\n");
+}
+
+fn main() -> i32 {
+    print("starts zen zen = ");
+    show_bool(str_starts_with("zen", "zen"));
+    print("starts zen zebra = ");
+    show_bool(str_starts_with("zen", "zebra"));
+    print("starts zen empty = ");
+    show_bool(str_starts_with("zen", ""));
+    print("starts empty empty = ");
+    show_bool(str_starts_with("", ""));
+    print("starts empty z = ");
+    show_bool(str_starts_with("", "z"));
+    print("starts longer zen = ");
+    show_bool(str_starts_with("zen", "zen longer"));
+    print("starts banana ban = ");
+    show_bool(str_starts_with("banana", "ban"));
+    print("starts banana ana = ");
+    show_bool(str_starts_with("banana", "ana"));
+    print("starts nul a\\0b a\\0 = ");
+    show_bool(str_starts_with("a\0b", "a\0"));
+
+    print("ends zen zen = ");
+    show_bool(str_ends_with("zen", "zen"));
+    print("ends zen en = ");
+    show_bool(str_ends_with("zen", "en"));
+    print("ends zen z = ");
+    show_bool(str_ends_with("zen", "z"));
+    print("ends zen empty = ");
+    show_bool(str_ends_with("zen", ""));
+    print("ends empty empty = ");
+    show_bool(str_ends_with("", ""));
+    print("ends empty z = ");
+    show_bool(str_ends_with("", "z"));
+    print("ends longer zen = ");
+    show_bool(str_ends_with("zen", "longer zen"));
+    print("ends banana nana = ");
+    show_bool(str_ends_with("banana", "nana"));
+    print("ends banana ban = ");
+    show_bool(str_ends_with("banana", "ban"));
+    print("ends nul a\\0b \\0b = ");
+    show_bool(str_ends_with("a\0b", "\0b"));
+
+    print("rfind banana na = ");
+    show_int(str_rfind("banana", "na"));
+    print("rfind banana ana = ");
+    show_int(str_rfind("banana", "ana"));
+    print("rfind banana ba = ");
+    show_int(str_rfind("banana", "ba"));
+    print("rfind banana z = ");
+    show_int(str_rfind("banana", "z"));
+    print("rfind banana empty = ");
+    show_int(str_rfind("banana", ""));
+    print("rfind empty empty = ");
+    show_int(str_rfind("", ""));
+    print("rfind empty x = ");
+    show_int(str_rfind("", "x"));
+    print("rfind longer bananas = ");
+    show_int(str_rfind("banana", "bananas"));
+    print("rfind aaaa aa = ");
+    show_int(str_rfind("aaaa", "aa"));
+    print("rfind aaaa aaa = ");
+    show_int(str_rfind("aaaa", "aaa"));
+    print("rfind ababab abab = ");
+    show_int(str_rfind("ababab", "abab"));
+    print("rfind nul a\\0b \\0b = ");
+    show_int(str_rfind("a\0b", "\0b"));
+    print("ext ok\n");
+    return 0;
+}

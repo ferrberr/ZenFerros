@@ -1,0 +1,7 @@
+/.cargo/
+**/target/
+.zen-build-*/
+/.tools/
+/ferros/build/
+**/__pycache__/
+/benchmarks/build/

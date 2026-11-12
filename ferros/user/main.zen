@@ -1,0 +1,281 @@
+// Separate ring-3 Zen program. No libc, heap, TLS, or privileged instructions.
+extern "C" {
+    fn user_syscall(number:u64,a:u64,b:u64,c:u64)->u64;
+    fn user_cpl()->u64;
+    fn user_rflags()->u64;
+    fn user_syscall_preserved()->u64;
+    fn user_storage_address()->u64;
+    fn user_storage_end()->u64;
+    fn user_fault_read_kernel();
+    fn user_fault_write_text();
+    fn user_fault_cli();
+    fn user_fault_execute_stack();
+    fn user_fault_read_guard();
+    fn user_fault_int81();
+}
+
+fn finish(status:u64) {
+    unsafe { user_syscall(2u64,status,0u64,0u64); }
+    // A functioning exit never returns. Keep a broken syscall from reporting success.
+    while true {}
+}
+
+fn expect_write_error(address:u64,length:u64,expected:i64)->bool {
+    unsafe { return user_syscall(1u64,address,length,0u64)==(expected as u64); }
+}
+
+fn valid_user_test()->u64 {
+    unsafe {
+        if user_cpl()!=3u64 { return 1u64; }
+        let flags:u64=user_rflags();
+        if ((flags>>12u64)&3u64)!=0u64 || (flags&512u64)==0u64 { return 2u64; }
+        if user_syscall_preserved()!=1u64 { return 3u64; }
+        let buffer:u64=user_storage_address();
+        let end:u64=user_storage_end();
+        if end-buffer!=4096u64 { return 4u64; }
+        let mut index:u64=0u64;
+        while index<4096u64 {
+            if volatile_load((buffer+index) as *u8)!=0u8 { return 5u64; }
+            index+=1u64;
+        }
+        let message:str="USER: Hello from Zen\n";
+        index=0u64;
+        while index<str_len(message) {
+            volatile_store((buffer+index) as *mut u8,str_byte(message,index));
+            index+=1u64;
+        }
+        if user_syscall(1u64,buffer,str_len(message),0u64)!=str_len(message) { return 6u64; }
+        if !expect_write_error(0u64,1u64,-14i64) { return 7u64; }
+        if !expect_write_error(0x100000u64,1u64,-14i64) { return 8u64; }
+        if !expect_write_error(0xfffffffffffffff0u64,32u64,-14i64) { return 9u64; }
+        if !expect_write_error(0x400f0000u64,1u64,-14i64) { return 10u64; }
+        if !expect_write_error(end-1u64,2u64,-14i64) { return 11u64; }
+        if !expect_write_error(buffer,4097u64,-22i64) { return 12u64; }
+        if user_syscall(0xffffu64,0u64,0u64,0u64)!=(-38i64 as u64) { return 13u64; }
+        // Hito 7: init/shell exercise the RAMFS/VFS file syscalls from CPL3.
+        if write_user("SHELL> ls\n")!=10u64 { return 15u64; }
+        let name:str="hello.zen";
+        index=0u64;
+        while index<str_len(name) {
+            volatile_store((buffer+index) as *mut u8,str_byte(name,index));
+            index+=1u64;
+        }
+        volatile_store((buffer+index) as *mut u8,0u8);
+        let fd:u64=user_syscall(4u64,buffer,0u64,0u64);
+        if fd<100u64 || fd>115u64 { return 16u64; }
+        if write_user("hello.zen\n")!=10u64 { return 17u64; }
+        if write_user("SHELL> cat hello.zen\n")!=21u64 { return 18u64; }
+        // Negative paths: read destination must be writable, CPL3 write is denied.
+        if user_syscall(5u64,fd,0x40000000u64,1u64)!=(-14i64 as u64) { return 22u64; }
+        if user_syscall(6u64,fd,buffer,1u64)!=(-13i64 as u64) { return 23u64; }
+        let mut bytes:u64=user_syscall(5u64,fd,buffer+128u64,16u64);
+        if bytes!=5u64 { return 19u64; }
+        volatile_store((buffer+128u64+bytes) as *mut u8,10u8);
+        bytes+=1u64;
+        if user_syscall(1u64,buffer+128u64,bytes,0u64)!=bytes { return 20u64; }
+        if user_syscall(7u64,fd,0u64,0u64)!=0u64 { return 21u64; }
+        // Leak one descriptor on purpose: teardown must close it before the
+        // kernel VFS self-test reuses slot 100. Re-stage the path first: the
+        // buffer currently holds the shell line, not the file name.
+        index=0u64;
+        while index<str_len(name) {
+            volatile_store((buffer+index) as *mut u8,str_byte(name,index));
+            index+=1u64;
+        }
+        volatile_store((buffer+index) as *mut u8,0u8);
+        let leak:u64=user_syscall(4u64,buffer,0u64,0u64);
+        if leak<100u64 || leak>115u64 { return 24u64; }
+        let before:u64=user_syscall(3u64,0u64,0u64,0u64);
+        let mut attempts:u64=0u64;
+        while attempts<1000000u64 {
+            let after:u64=user_syscall(3u64,0u64,0u64,0u64);
+            if after>before {
+                // Hito 7 shell: interactive COM1 session on top of the VFS.
+                shell_session();
+                return 0u64;
+            }
+            attempts+=1u64;
+        }
+        return 14u64;
+    }
+}
+
+fn write_user(msg:str)->u64 {
+    unsafe {
+        let buffer:u64=user_storage_address();
+        let mut i:u64=0u64;
+        while i<str_len(msg) {
+            volatile_store((buffer+i) as *mut u8,str_byte(msg,i));
+            i+=1u64;
+        }
+        return user_syscall(1u64,buffer,str_len(msg),0u64);
+    }
+}
+
+// Hito 7 shell helpers. The input line lives at user_storage+128 (max 64 bytes)
+// and cat contents at user_storage+512 (max 256); literals stage at +0 through
+// write_user, so they never overwrite the line being parsed.
+fn shell_line_equals(base:u64,length:u64,msg:str)->bool {
+    if length!=str_len(msg) { return false; }
+    unsafe {
+        let mut i:u64=0u64;
+        while i<length {
+            if volatile_load((base+i) as *u8)!=str_byte(msg,i) { return false; }
+            i+=1u64;
+        }
+    }
+    return true;
+}
+
+fn shell_line_has_prefix(base:u64,length:u64,msg:str)->bool {
+    let n:u64=str_len(msg);
+    if length<n { return false; }
+    unsafe {
+        let mut i:u64=0u64;
+        while i<n {
+            if volatile_load((base+i) as *u8)!=str_byte(msg,i) { return false; }
+            i+=1u64;
+        }
+    }
+    return true;
+}
+
+// cat <path>: the echo already emitted the newline, so overwrite it with NUL
+// to hand a C string to syscall 4. Read errors surface as a huge u64.
+fn shell_cat(base:u64,length:u64) {
+    unsafe {
+        volatile_store((base+length) as *mut u8,0u8);
+        let fd:u64=user_syscall(4u64,base+4u64,0u64,0u64);
+        if fd<100u64 || fd>115u64 {
+            write_user("SHELL: FILE ERROR\n");
+            return;
+        }
+        let buffer:u64=user_storage_address();
+        let bytes:u64=user_syscall(5u64,fd,buffer+512u64,256u64);
+        if bytes>256u64 {
+            user_syscall(7u64,fd,0u64,0u64);
+            write_user("SHELL: FILE ERROR\n");
+            return;
+        }
+        // Terminate exactly once: only append the display newline when the
+        // file does not already end with one (notes.txt stores "Zen\n").
+        if bytes>0u64 && volatile_load((buffer+512u64+bytes-1u64) as *u8)==10u8 {
+            user_syscall(1u64,buffer+512u64,bytes,0u64);
+        } else {
+            volatile_store((buffer+512u64+bytes) as *mut u8,10u8);
+            user_syscall(1u64,buffer+512u64,bytes+1u64,0u64);
+        }
+        user_syscall(7u64,fd,0u64,0u64);
+    }
+}
+
+// ls: syscall 9 returns NUL separated names. Rewrite each separator as a
+// newline and emit the whole listing with a single write, so the shell keeps
+// its frozen write count (one output write per command).
+fn shell_ls() {
+    unsafe {
+        let buffer:u64=user_storage_address();
+        let bytes:u64=user_syscall(9u64,buffer+512u64,256u64,0u64);
+        if bytes>256u64 {
+            write_user("SHELL: FILE ERROR\n");
+            return;
+        }
+        let mut i:u64=0u64;
+        while i<bytes {
+            if volatile_load((buffer+512u64+i) as *u8)==0u8 {
+                volatile_store((buffer+512u64+i) as *mut u8,10u8);
+            }
+            i+=1u64;
+        }
+        if bytes>0u64 { user_syscall(1u64,buffer+512u64,bytes,0u64); }
+    }
+}
+
+// Runs one command line. Returns false only for exit.
+fn shell_command(base:u64,length:u64)->bool {
+    if length==0u64 { return true; }
+    if shell_line_equals(base,length,"exit") { return false; }
+    if shell_line_equals(base,length,"help") {
+        write_user("commands: help ls cat exit\n");
+        return true;
+    }
+    if shell_line_equals(base,length,"ls") {
+        shell_ls();
+        return true;
+    }
+    if shell_line_has_prefix(base,length,"cat ") {
+        shell_cat(base,length);
+        return true;
+    }
+    write_user("SHELL: UNKNOWN COMMAND\n");
+    return true;
+}
+
+// Reads one line, newline included at base[length], with an inactivity
+// deadline instead of a cumulative probe budget: every received byte re-arms
+// the deadline, so human typing stays usable while an empty line still ends
+// after ~1 s (100 ticks of the 100 Hz PIT) in both debug and release.
+fn shell_read_line(base:u64)->u64 {
+    unsafe {
+        let mut length:u64=0u64;
+        let mut polls:u64=0u64;
+        let mut deadline:u64=user_syscall(3u64,0u64,0u64,0u64)+100u64;
+        while length<64u64 {
+            let byte:u64=user_syscall(8u64,0u64,0u64,0u64);
+            if byte==0xffffffffu64 {
+                polls+=1u64;
+                if polls>=4096u64 {
+                    polls=0u64;
+                    if user_syscall(3u64,0u64,0u64,0u64)>=deadline { return 0xffffffffu64; }
+                }
+            } else {
+                if byte==10u64 {
+                    volatile_store((base+length) as *mut u8,10u8);
+                    return length;
+                }
+                volatile_store((base+length) as *mut u8,byte as u8);
+                length+=1u64;
+                deadline=user_syscall(3u64,0u64,0u64,0u64)+100u64;
+                polls=0u64;
+            }
+        }
+        volatile_store((base+length) as *mut u8,10u8);
+        return length;
+    }
+}
+
+// Writes exactly 13 times on the frozen transcript: READY, 4 prompts, 4 line
+// echoes, 3 command outputs and DONE.
+fn shell_session() {
+    unsafe {
+        let base:u64=user_storage_address()+128u64;
+        let mut running:bool=true;
+        write_user("SHELL: READY\n");
+        while running {
+            write_user("SHELL> ");
+            let line:u64=shell_read_line(base);
+            if line==0xffffffffu64 {
+                write_user("SHELL: NO INPUT\n");
+                running=false;
+            } else {
+                user_syscall(1u64,base,line+1u64,0u64);
+                running=shell_command(base,line);
+            }
+        }
+        write_user("SHELL: DONE\n");
+    }
+}
+
+pub fn user_entry(case_id:u64) {
+    if case_id==0u64 { finish(valid_user_test()); return; }
+    unsafe {
+        if case_id==1u64 { user_fault_read_kernel(); }
+        else if case_id==2u64 { user_fault_write_text(); }
+        else if case_id==3u64 { user_fault_cli(); }
+        else if case_id==4u64 { user_fault_execute_stack(); }
+        else if case_id==5u64 { user_fault_read_guard(); }
+        else if case_id==6u64 { user_fault_int81(); }
+    }
+    // An isolation probe returning normally is a failed user test.
+    finish(255u64);
+}

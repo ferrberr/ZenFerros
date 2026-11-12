@@ -1,0 +1,59 @@
+// TASK-912: distribute a standard library in Zen source and include it with a
+// relative `use` directive. The path is resolved against this file, so the
+// example runs from any working directory.
+use "../std/core.zen";
+
+fn show_bool(label: str, value: bool) -> void {
+    print(label);
+    if value {
+        print("true");
+    } else {
+        print("false");
+    }
+    print("\n");
+}
+
+fn main() -> i32 {
+    print("min_u64(42, 7) = ");
+    print_uint(min_u64(42, 7));
+    print("\n");
+    print("max_u64(42, 7) = ");
+    print_uint(max_u64(42, 7));
+    print("\n");
+    print("clamp_u64(120, 10, 99) = ");
+    print_uint(clamp_u64(120, 10, 99));
+    print("\n");
+    print("clamp_u64(5, 10, 99) = ");
+    print_uint(clamp_u64(5, 10, 99));
+    print("\n");
+    print("clamp_u64(50, 10, 99) = ");
+    print_uint(clamp_u64(50, 10, 99));
+    print("\n");
+    print("abs_diff_u64(9, 4) = ");
+    print_uint(abs_diff_u64(9, 4));
+    print("\n");
+    print("abs_diff_u64(4, 9) = ");
+    print_uint(abs_diff_u64(4, 9));
+    print("\n");
+    show_bool("is_even(42) = ", is_even(42));
+    show_bool("is_even(7) = ", is_even(7));
+    show_bool("is_odd(7) = ", is_odd(7));
+    print("gcd_u64(84, 30) = ");
+    print_uint(gcd_u64(84, 30));
+    print("\n");
+
+    if min_u64(42, 7) != 7 || max_u64(42, 7) != 42 {
+        return 1;
+    }
+    if clamp_u64(120, 10, 99) != 99 || clamp_u64(5, 10, 99) != 10 {
+        return 2;
+    }
+    if abs_diff_u64(4, 9) != 5 || !is_even(42) || is_even(7) || !is_odd(7) {
+        return 3;
+    }
+    if gcd_u64(84, 30) != 6 {
+        return 4;
+    }
+    print("use std ok\n");
+    return 0;
+}

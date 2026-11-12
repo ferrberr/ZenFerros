@@ -1,0 +1,9 @@
+// Negative boot fixture: an unarmed int3 must terminate with panic, never success.
+pub fn kernel_entry(magic:u64,info:u64) {
+    if !serial_init() { finish(0x11u32); return; }
+    if magic!=0x2badb002u64 || info==0 { kernel_panic("invalid handoff"); return; }
+    serial_write("FERROS NEGATIVE TEST\n");
+    interrupts_init();
+    unsafe { ferros_breakpoint(); }
+    kernel_panic("unhandled breakpoint returned");
+}

@@ -1,0 +1,414 @@
+// TASK-902C: parser de expresiones con AST real en Zen (Hito 9).
+// Perfil freestanding (x86_64-unknown-none): sin libc, sin structs.
+//
+// Contrato:
+//   pub fn zen_ast_eval(text:u64, length:u64, out:u64) -> u64
+//   out[0] = estado (0 ok, 1 error sintactico, 2 division/resto por cero,
+//                    3 desbordamiento de arena o de profundidad)
+//   out[1] = valor u64 (0 cuando hay error)
+//   out[2] = numero de nodos AST construidos (0 en error sintactico/arena;
+//            en division por cero se informa el AST que si se construyo)
+//   out[3] = checksum estructural FNV-1a de kind/value/left/right (0 si el
+//            parseo no llego a completar el AST)
+//
+// Representacion: arrays fijos LOCALES en la unica funcion que los usa (el MVP
+// prohibe pasar arrays a funciones). Nodos en arrays paralelos:
+//   kind: 0 numero, 2 '+', 3 '-', 4 '*', 5 '/', 6 '%', 7 '-' unario.
+//   value: literal u64 del numero (el resto se calcula al evaluar).
+//   left/right: indices de hijo; 0xFFFFFFFF marca "sin hijo".
+// La construccion usa shunting-yard: cada nodo nuevo referencia operandos ya
+// creados, asi que left/right < indice del nodo. Por eso la evaluacion es un
+// unico recorrido ascendente de los arrays (no se reevalua durante el parseo).
+//
+// Limites: arena de 512 nodos y profundidad de pila de operadores de 128.
+// Con lineas de <=512 bytes el numero de nodos nunca supera los bytes de la
+// entrada, de modo que el desbordamiento de arena es una guarda defensiva; el
+// limite alcanzable por el driver es la profundidad (estado 3).
+
+fn zen_ast_peek(text:u64,length:u64,pos:u64)->u64 {
+    if pos>=length { return 0u64; }
+    unsafe {
+        let address:*u8=(text+pos) as *u8;
+        return volatile_load(address) as u64;
+    }
+}
+
+fn zen_ast_skip(text:u64,length:u64,pos:u64)->u64 {
+    let mut cursor:u64=pos;
+    let mut running:bool=true;
+    while running && cursor<length {
+        let b:u64=zen_ast_peek(text,length,cursor);
+        if b==32u64 || b==9u64 || b==10u64 || b==13u64 {
+            cursor+=1u64;
+        } else {
+            running=false;
+        }
+    }
+    return cursor;
+}
+
+fn zen_ast_is_digit(b:u64)->bool {
+    return b>=48u64 && b<=57u64;
+}
+
+// Precedencia de los operadores del AST (0 para el marcador de parentesis).
+fn zen_ast_prec(kind:u64)->u64 {
+    if kind==2u64 || kind==3u64 { return 1u64; }
+    if kind==4u64 || kind==5u64 || kind==6u64 { return 2u64; }
+    if kind==7u64 { return 3u64; }
+    return 0u64;
+}
+
+// Kind binario del caracter, o 0 si no es un operador binario.
+fn zen_ast_bin_kind(b:u64)->u64 {
+    if b==43u64 { return 2u64; }
+    if b==45u64 { return 3u64; }
+    if b==42u64 { return 4u64; }
+    if b==47u64 { return 5u64; }
+    if b==37u64 { return 6u64; }
+    return 0u64;
+}
+
+pub fn zen_ast_eval(text:u64,length:u64,out:u64)->u64 {
+    // Arena del AST y pilas del parser. Solo locales: el MVP no permite
+    // parametros, retornos ni argumentos de tipo array.
+    let mut kinds:[u8;512]=[0u8;512];
+    let mut values:[u64;512]=[0u64;512];
+    let mut lefts:[u32;512]=[0u32;512];
+    let mut rights:[u32;512]=[0u32;512];
+    let mut opst:[u8;512]=[0u8;512];
+    let mut ost:[u32;512]=[0u32;512];
+
+    let mut nodes:u64=0u64;
+    let mut op_sp:u64=0u64;
+    let mut os_sp:u64=0u64;
+    let mut pos:u64=0u64;
+    let mut expect_operand:bool=true;
+    let mut status:u64=0u64;
+    let mut parsing:bool=true;
+
+    while parsing && pos<length {
+        pos=zen_ast_skip(text,length,pos);
+        if pos>=length { break; }
+        let ch:u64=zen_ast_peek(text,length,pos);
+        if expect_operand {
+            if zen_ast_is_digit(ch) {
+                let mut value:u64=0u64;
+                let mut cursor:u64=pos;
+                while cursor<length && zen_ast_is_digit(zen_ast_peek(text,length,cursor)) {
+                    value=value*10u64+(zen_ast_peek(text,length,cursor)-48u64);
+                    cursor+=1u64;
+                }
+                if nodes>=512u64 || os_sp>=512u64 {
+                    status=3u64;
+                    parsing=false;
+                } else {
+                    kinds[nodes]=0u8;
+                    values[nodes]=value;
+                    lefts[nodes]=4294967295u32;
+                    rights[nodes]=4294967295u32;
+                    ost[os_sp]=nodes as u32;
+                    os_sp+=1u64;
+                    nodes+=1u64;
+                    pos=cursor;
+                    expect_operand=false;
+                }
+            } else if ch==40u64 {
+                if op_sp>=128u64 {
+                    status=3u64;
+                    parsing=false;
+                } else {
+                    opst[op_sp]=0u8;
+                    op_sp+=1u64;
+                    pos+=1u64;
+                }
+            } else if ch==45u64 {
+                if op_sp>=128u64 {
+                    status=3u64;
+                    parsing=false;
+                } else {
+                    opst[op_sp]=7u8;
+                    op_sp+=1u64;
+                    pos+=1u64;
+                }
+            } else {
+                status=1u64;
+                parsing=false;
+            }
+        } else if ch==41u64 {
+            // Cierre de parentesis: reduce hasta el marcador '('.
+            pos+=1u64;
+            let mut closed:bool=false;
+            while op_sp>0u64 && !closed {
+                let top:u64=opst[op_sp-1u64] as u64;
+                if top==0u64 {
+                    op_sp-=1u64;
+                    closed=true;
+                } else if top==7u64 {
+                    if os_sp<1u64 {
+                        status=1u64;
+                        parsing=false;
+                        closed=true;
+                    } else if nodes>=512u64 {
+                        status=3u64;
+                        parsing=false;
+                        closed=true;
+                    } else {
+                        let child:u64=ost[os_sp-1u64] as u64;
+                        kinds[nodes]=7u8;
+                        values[nodes]=0u64;
+                        lefts[nodes]=child as u32;
+                        rights[nodes]=4294967295u32;
+                        ost[os_sp-1u64]=nodes as u32;
+                        nodes+=1u64;
+                        op_sp-=1u64;
+                    }
+                } else {
+                    if os_sp<2u64 {
+                        status=1u64;
+                        parsing=false;
+                        closed=true;
+                    } else if nodes>=512u64 {
+                        status=3u64;
+                        parsing=false;
+                        closed=true;
+                    } else {
+                        let rhs:u64=ost[os_sp-1u64] as u64;
+                        let lhs:u64=ost[os_sp-2u64] as u64;
+                        kinds[nodes]=top as u8;
+                        values[nodes]=0u64;
+                        lefts[nodes]=lhs as u32;
+                        rights[nodes]=rhs as u32;
+                        ost[os_sp-2u64]=nodes as u32;
+                        os_sp-=1u64;
+                        nodes+=1u64;
+                        op_sp-=1u64;
+                    }
+                }
+            }
+            if parsing && !closed {
+                status=1u64;
+                parsing=false;
+            }
+            if parsing {
+                expect_operand=false;
+            }
+        } else {
+            let kind:u64=zen_ast_bin_kind(ch);
+            if kind==0u64 {
+                status=1u64;
+                parsing=false;
+            } else {
+                pos+=1u64;
+                // Asociatividad izquierda: reduce operadores de precedencia
+                // mayor o igual antes de apilar el nuevo.
+                let mut reducing:bool=true;
+                while reducing && op_sp>0u64 {
+                    let top:u64=opst[op_sp-1u64] as u64;
+                    if top==0u64 {
+                        reducing=false;
+                    } else if zen_ast_prec(top)>=zen_ast_prec(kind) {
+                        if top==7u64 {
+                            if os_sp<1u64 {
+                                status=1u64;
+                                parsing=false;
+                                reducing=false;
+                            } else if nodes>=512u64 {
+                                status=3u64;
+                                parsing=false;
+                                reducing=false;
+                            } else {
+                                let child:u64=ost[os_sp-1u64] as u64;
+                                kinds[nodes]=7u8;
+                                values[nodes]=0u64;
+                                lefts[nodes]=child as u32;
+                                rights[nodes]=4294967295u32;
+                                ost[os_sp-1u64]=nodes as u32;
+                                nodes+=1u64;
+                                op_sp-=1u64;
+                            }
+                        } else {
+                            if os_sp<2u64 {
+                                status=1u64;
+                                parsing=false;
+                                reducing=false;
+                            } else if nodes>=512u64 {
+                                status=3u64;
+                                parsing=false;
+                                reducing=false;
+                            } else {
+                                let rhs:u64=ost[os_sp-1u64] as u64;
+                                let lhs:u64=ost[os_sp-2u64] as u64;
+                                kinds[nodes]=top as u8;
+                                values[nodes]=0u64;
+                                lefts[nodes]=lhs as u32;
+                                rights[nodes]=rhs as u32;
+                                ost[os_sp-2u64]=nodes as u32;
+                                os_sp-=1u64;
+                                nodes+=1u64;
+                                op_sp-=1u64;
+                            }
+                        }
+                    } else {
+                        reducing=false;
+                    }
+                }
+                if parsing {
+                    if op_sp>=128u64 {
+                        status=3u64;
+                        parsing=false;
+                    } else {
+                        opst[op_sp]=kind as u8;
+                        op_sp+=1u64;
+                        expect_operand=true;
+                    }
+                }
+            }
+        }
+    }
+
+    // Un operador (o nada) al final deja el parser esperando un operando.
+    if parsing && status==0u64 && expect_operand {
+        status=1u64;
+        parsing=false;
+    }
+
+    // Vacia los operadores pendientes; un '(' sin cerrar es error sintactico.
+    if parsing && status==0u64 {
+        let mut draining:bool=true;
+        while draining && op_sp>0u64 {
+            let top:u64=opst[op_sp-1u64] as u64;
+            if top==0u64 {
+                status=1u64;
+                parsing=false;
+                draining=false;
+            } else if top==7u64 {
+                if os_sp<1u64 {
+                    status=1u64;
+                    parsing=false;
+                    draining=false;
+                } else if nodes>=512u64 {
+                    status=3u64;
+                    parsing=false;
+                    draining=false;
+                } else {
+                    let child:u64=ost[os_sp-1u64] as u64;
+                    kinds[nodes]=7u8;
+                    values[nodes]=0u64;
+                    lefts[nodes]=child as u32;
+                    rights[nodes]=4294967295u32;
+                    ost[os_sp-1u64]=nodes as u32;
+                    nodes+=1u64;
+                    op_sp-=1u64;
+                }
+            } else {
+                if os_sp<2u64 {
+                    status=1u64;
+                    parsing=false;
+                    draining=false;
+                } else if nodes>=512u64 {
+                    status=3u64;
+                    parsing=false;
+                    draining=false;
+                } else {
+                    let rhs:u64=ost[os_sp-1u64] as u64;
+                    let lhs:u64=ost[os_sp-2u64] as u64;
+                    kinds[nodes]=top as u8;
+                    values[nodes]=0u64;
+                    lefts[nodes]=lhs as u32;
+                    rights[nodes]=rhs as u32;
+                    ost[os_sp-2u64]=nodes as u32;
+                    os_sp-=1u64;
+                    nodes+=1u64;
+                    op_sp-=1u64;
+                }
+            }
+        }
+    }
+
+    // Un AST valido deja exactamente un operando y ningun operador pendiente.
+    if status==0u64 {
+        if op_sp!=0u64 || os_sp!=1u64 || nodes==0u64 {
+            status=1u64;
+            parsing=false;
+        }
+    }
+
+    // Checksum estructural FNV-1a sobre kind/value/left/right de cada nodo.
+    let mut ast:u64=0u64;
+    if status==0u64 {
+        let mut hash:u64=14695981039346656037u64;
+        let mut index:u64=0u64;
+        while index<nodes {
+            hash=(hash^(kinds[index] as u64))*1099511628211u64;
+            hash=(hash^values[index])*1099511628211u64;
+            hash=(hash^(lefts[index] as u64))*1099511628211u64;
+            hash=(hash^(rights[index] as u64))*1099511628211u64;
+            index+=1u64;
+        }
+        ast=hash;
+    }
+
+    // Evaluacion: recorrido ascendente de la arena. Para cada nodo sus hijos
+    // ya tienen valor calculado porque su indice es menor. No se reparsea ni
+    // se reevalua la fuente: es el AST de los arrays el que se recorre.
+    if status==0u64 {
+        let mut eval_ok:bool=true;
+        let mut eval_index:u64=0u64;
+        while eval_index<nodes && eval_ok {
+            let kind:u64=kinds[eval_index] as u64;
+            if kind==0u64 {
+                eval_index+=1u64;
+            } else if kind==7u64 {
+                values[eval_index]=0u64-values[lefts[eval_index] as u64];
+                eval_index+=1u64;
+            } else {
+                let lhs:u64=values[lefts[eval_index] as u64];
+                let rhs:u64=values[rights[eval_index] as u64];
+                if kind==2u64 {
+                    values[eval_index]=lhs+rhs;
+                } else if kind==3u64 {
+                    values[eval_index]=lhs-rhs;
+                } else if kind==4u64 {
+                    values[eval_index]=lhs*rhs;
+                } else if kind==5u64 {
+                    if rhs==0u64 {
+                        status=2u64;
+                        eval_ok=false;
+                    } else {
+                        values[eval_index]=lhs/rhs;
+                    }
+                } else if kind==6u64 {
+                    if rhs==0u64 {
+                        status=2u64;
+                        eval_ok=false;
+                    } else {
+                        values[eval_index]=lhs%rhs;
+                    }
+                }
+                eval_index+=1u64;
+            }
+        }
+    }
+
+    let mut result:u64=0u64;
+    let mut node_count:u64=nodes;
+    if status==0u64 {
+        result=values[ost[0u64] as u64];
+    } else if status==2u64 {
+        // El AST si se construyo y su checksum ya esta calculado: se informa
+        // para diagnostico aunque la evaluacion haya fallado.
+        node_count=nodes;
+    } else {
+        node_count=0u64;
+        ast=0u64;
+    }
+
+    unsafe {
+        volatile_store(out as *mut u64,status);
+        volatile_store((out+8u64) as *mut u64,result);
+        volatile_store((out+16u64) as *mut u64,node_count);
+        volatile_store((out+24u64) as *mut u64,ast);
+    }
+    return status;
+}

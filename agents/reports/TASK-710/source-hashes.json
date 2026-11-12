@@ -1,0 +1,20 @@
+{
+  "ferros/kernel/arch/x86_64/abi.zen": "a382f387eb8ea013241910771f70dd63ffa39a67adca42749fc4d79b9e13ec12",
+  "ferros/kernel/drivers/serial.zen": "73c19f43f9ee3798ad4d9e0e15f258e588ed2aa0dff22644de54cee18bf12fd1",
+  "ferros/kernel/interrupts.zen": "8f723683370a39a78219c7ff5aba7c9338fb0e9bc3ea4a6b3a92a634286431d5",
+  "ferros/kernel/main.zen": "3906972c85e9f6468d9eccf78df750bc99ace9a6c349ca861f2363efb6ea6d1c",
+  "ferros/kernel/memory.zen": "40eb94b7d75aa75d5eb1f428b6399fdd7f8ab4c2d092052dac9e928fc3ef9ff1",
+  "ferros/kernel/runtime.zen": "725a7aef9001b94661b251e96e97c26a647e15576b723e3ae3337ebcd526459e",
+  "ferros/kernel/scheduler.zen": "51d3e97ec58f96fca94eaf1fb86a32d059d77d6aea5357bc9621f3132a50c798",
+  "ferros/kernel/userspace.zen": "4946c9c980a70032fc9bb683b339c027ca4da7c4cd8155e8472a742d081732f1",
+  "ferros/kernel/arch/x86_64/context.S": "eb4d40c8f2decad7d0e85f68b6fd9c58166010248c0d0706723a77077abb0c91",
+  "ferros/kernel/arch/x86_64/interrupts.S": "ac7fa19b3ea74f339e5aa72d3549c75ea99cd9b8a421f25a3e4456769d6b2811",
+  "ferros/kernel/arch/x86_64/io.S": "b125795ff9072519d2c281cbc3a78a13849e7ecf7a5d80982ae8895ac253e54d",
+  "ferros/kernel/arch/x86_64/userspace.S": "f5303c307efa39cf1362920248c4328e0011743fba0e7f832eed7b66747fdd1b",
+  "ferros/user/entry.S": "c5de12d72f0053c0840585239772cce01831effd959fbb15928e520a4ba4fab0",
+  "ferros/user/linker.ld": "170092ffebeb4a791f528a76584c3cf31cda4426f71848e940db402ed883dcf0",
+  "ferros/user/main.zen": "45a4acf2ad5dff23e7a0a874b7a04ee86511b2356a608d22370a1ff3135478dc",
+  "infrastructure/scripts/build_ferros.py": "9e270f62b16f2f95b926939fa2e274c72a96e1af52d56839ddc038332a140239",
+  "infrastructure/scripts/build_user.py": "130ac635e2471a1edfb7a89a45d48afaac45d524b97017328e4b7db84894fb8d",
+  "infrastructure/scripts/boot_ferros.py": "b83945accfa824a63573c1fa3eb5eeeb3ef99201e72a235b7fff59b940052007"
+}

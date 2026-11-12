@@ -1,0 +1,39 @@
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen build /tmp/zenferros-task611-review/release/kernel.zen --target x86_64-unknown-none --emit obj -o /tmp/zenferros-task611-review/release/kernel.o --release
+Built /tmp/zenferros-task611-review/release/kernel.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/boot/entry.S -o /tmp/zenferros-task611-review/release/entry.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/io.S -o /tmp/zenferros-task611-review/release/io.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/interrupts.S -o /tmp/zenferros-task611-review/release/interrupts.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/context.S -o /tmp/zenferros-task611-review/release/context.o
+exit=0
+
+$ ld -m elf_x86_64 -z max-page-size=0x1000 -z noexecstack -nostdlib -static -T /home/ferranfg/proyectos/ZenFerros/ferros/boot/linker.ld /tmp/zenferros-task611-review/release/entry.o /tmp/zenferros-task611-review/release/kernel.o /tmp/zenferros-task611-review/release/io.o /tmp/zenferros-task611-review/release/interrupts.o /tmp/zenferros-task611-review/release/context.o -o /tmp/zenferros-task611-review/release/ferros-x86_64.elf
+exit=0
+
+$ objcopy -O elf32-i386 /tmp/zenferros-task611-review/release/ferros-x86_64.elf /tmp/zenferros-task611-review/release/ferros-multiboot.elf
+exit=0
+
+$ nm -u /tmp/zenferros-task611-review/release/ferros-x86_64.elf
+exit=0
+
+$ nm -u /tmp/zenferros-task611-review/release/ferros-multiboot.elf
+exit=0
+
+$ objcopy --dump-section .text=/tmp/zenferros-task611-review/release/text64.bin /tmp/zenferros-task611-review/release/ferros-x86_64.elf
+exit=0
+
+$ objcopy --dump-section .text=/tmp/zenferros-task611-review/release/text32.bin /tmp/zenferros-task611-review/release/ferros-multiboot.elf
+exit=0
+
+$ objcopy --dump-section .rodata=/tmp/zenferros-task611-review/release/rodata64.bin /tmp/zenferros-task611-review/release/ferros-x86_64.elf
+exit=0
+
+$ objcopy --dump-section .rodata=/tmp/zenferros-task611-review/release/rodata32.bin /tmp/zenferros-task611-review/release/ferros-multiboot.elf
+exit=0

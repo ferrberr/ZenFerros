@@ -1,0 +1,288 @@
+(* Gramática Zen MVP v0.1 — Notación EBNF extendida *)
+(* Diseño: Agente 01 (Arquitecto Zen) — Revisión: Agente 02 (Frontend) *)
+
+(* ============================================================
+   LÉXICO (Tokens)
+   ============================================================ *)
+
+(* Comentarios *)
+comment        = "//" , { character - newline } , newline
+             | "/*" , { character - "*/" } , "*/" ;
+
+(* Identificadores *)
+ident          = letter , { letter | digit | "_" } ;
+keyword        = "fn" | "let" | "mut" | "const" | "if" | "else" | "while" 
+               | "for" | "return" | "break" | "continue" | "struct" 
+               | "impl" | "mod" | "use" | "pub" | "as" | "type" 
+               | "enum" | "match" | "loop" | "unsafe" | "extern" 
+               | "sizeof" | "alignof" | "offsetof" | "cast" | "transmute"
+               | "true" | "false" | "null" ;
+
+(* Literales *)
+integer_lit    = decimal_lit | hex_lit | binary_lit | octal_lit ;
+decimal_lit    = digit , { digit | "_" } , [ type_suffix ] ;
+hex_lit        = "0x" , hex_digit , { hex_digit | "_" } , [ type_suffix ] ;
+binary_lit     = "0b" , binary_digit , { binary_digit | "_" } , [ type_suffix ] ;
+octal_lit      = "0o" , octal_digit , { octal_digit | "_" } , [ type_suffix ] ;
+type_suffix    = "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+               | "u8" | "u16" | "u32" | "u64" | "u128" | "usize" ;
+
+float_lit      = digit , { digit | "_" } , "." , { digit | "_" } , [ exponent ] , [ float_suffix ] ;
+exponent       = ("e" | "E") , ["+" | "-"] , digit , { digit | "_" } ;
+float_suffix   = "f32" | "f64" ;
+
+bool_lit       = "true" | "false" ;
+char_lit       = "'" , ( escape_seq | character - "'" - "\\" ) , "'" ;
+string_lit     = "\"" , { escape_seq | character - "\"" - "\\" } , "\"" ;
+null_lit       = "null" ;
+
+escape_seq     = "\\" , ( "n" | "t" | "r" | "\\" | "\"" | "'" | "0" | "x" , hex_digit , hex_digit ) ;
+
+(* Operadores y puntuación *)
+operator       = "+" | "-" | "*" | "/" | "%" | "**" 
+               | "==" | "!=" | "<" | ">" | "<=" | ">=" 
+               | "&&" | "||" | "!" 
+               | "&" | "|" | "^" | "~" | "<<" | ">>" 
+               | "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" 
+               | "." | ".." | "..." | "->" | "=>" | "::" | ":" | ";" | "," | "(" | ")" | "[" | "]" | "{" | "}" | "|" | "?" | "@" ;
+
+(* ============================================================
+   TIPOS
+   ============================================================ *)
+
+type           = primitive_type | pointer_type | array_type | tuple_type | struct_type | func_type | ident [ generic_args ] ;
+
+primitive_type = "void" | "bool" | "char" 
+               | "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+               | "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+               | "f32" | "f64" 
+               | "never" ;
+
+pointer_type   = "*" , [ "mut" | "const" ] , type 
+               | "&" , [ "mut" ] , type 
+               | "&&" , [ "mut" ] , type ;  (* raw pointer *)
+
+array_type     = "[" , type , ";" , expression , "]" 
+               | "[" , type , "]" ;  (* slice *)
+
+tuple_type     = "(" , [ type , { "," , type } ] , ")" ;
+
+struct_type    = ident ;
+
+func_type      = "fn" , "(" , [ type , { "," , type } ] , ")" , [ "->" , type ] ;
+
+generic_args   = "<" , type , { "," , type } , ">" ;
+
+(* ============================================================
+   EXPRESIONES (Precedencia: mayor a menor)
+   ============================================================ *)
+
+expression     = assignment_expr ;
+
+assignment_expr= primary_expr , [ assign_op , assignment_expr ] ;
+assign_op      = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ;
+
+primary_expr   = or_expr ;
+
+or_expr        = and_expr , { "||" , and_expr } ;
+and_expr       = equality_expr , { "&&" , equality_expr } ;
+equality_expr  = relational_expr , { ("==" | "!=") , relational_expr } ;
+relational_expr= additive_expr , { ("<" | ">" | "<=" | ">=") , additive_expr } ;
+additive_expr  = multiplicative_expr , { ("+" | "-") , multiplicative_expr } ;
+multiplicative_expr = cast_expr , { ("*" | "/" | "%") , cast_expr } ;
+
+cast_expr      = unary_expr , [ "as" , type ] ;
+
+unary_expr     = [ "-" | "!" | "~" | "&" | "&mut" | "*" | "++" | "--" ] , postfix_expr 
+               | postfix_expr , [ "++" | "--" ] ;
+
+postfix_expr   = call_expr , { "." , ident | "[" , expression , "]" | "?" } ;
+
+call_expr      = primary_atom , [ type_args ] , "(" , [ expression , { "," , expression } ] , ")" ;
+type_args      = "<" , type , { "," , type } , ">" ;
+
+primary_atom   = literal 
+               | ident 
+               | "(" , expression , ")" 
+               | block_expr 
+               | if_expr 
+               | while_expr 
+               | loop_expr 
+               | match_expr 
+               | struct_lit 
+               | array_lit 
+               | tuple_lit ;
+
+literal        = integer_lit | float_lit | bool_lit | char_lit | string_lit | null_lit ;
+
+struct_lit     = ident , "{" , [ field_init , { "," , field_init } ] , "}" ;
+field_init     = ident , ":" , expression ;
+
+array_lit      = "[" , [ expression , { "," , expression } ] , "]" ;
+
+tuple_lit      = "(" , expression , { "," , expression } , ")" ;
+
+block_expr     = "{" , { statement } , [ expression ] , "}" ;
+
+if_expr        = "if" , expression , block_expr , [ "else" , ( block_expr | if_expr ) ] ;
+
+while_expr     = "while" , expression , block_expr ;
+
+loop_expr      = "loop" , block_expr ;
+
+match_expr     = "match" , expression , "{" , { match_arm } , "}" ;
+match_arm      = pattern , "=>" , expression , "," ;
+pattern        = ident | literal | "_" | tuple_pattern | struct_pattern ;
+tuple_pattern  = "(" , [ pattern , { "," , pattern } ] , ")" ;
+struct_pattern = ident , "{" , [ ident , { "," , ident } ] , "}" ;
+
+(* ============================================================
+   STATEMENTS
+   ============================================================ *)
+
+statement      = let_stmt | const_stmt | assign_stmt | expr_stmt | return_stmt | break_stmt | continue_stmt | block_stmt | if_stmt | while_stmt | loop_stmt ;
+
+let_stmt       = "let" , [ "mut" ] , ident , [ ":" , type ] , "=" , expression , ";" ;
+const_stmt     = "const" , ident , ":" , type , "=" , expression , ";" ;
+assign_stmt    = expression , "=" , expression , ";" ;
+expr_stmt      = expression , ";" ;
+return_stmt    = "return" , [ expression ] , ";" ;
+break_stmt     = "break" , ";" ;
+continue_stmt  = "continue" , ";" ;
+block_stmt     = "{" , { statement } , "}" ;
+
+if_stmt        = "if" , expression , block_stmt , [ "else" , ( block_stmt | if_stmt ) ] ;
+while_stmt     = "while" , expression , block_stmt ;
+loop_stmt      = "loop" , block_stmt ;
+
+(* ============================================================
+   DECLARACIONES DE NIVEL SUPERIOR
+   ============================================================ *)
+
+top_level      = { item } ;
+
+item           = function_def | struct_def | impl_def | type_alias | const_def | static_def | mod_def | use_def | extern_block ;
+
+function_def   = [ "pub" ] , "fn" , ident , [ generic_params ] , "(" , [ param , { "," , param } ] , ")" , [ "->" , type ] , [ where_clause ] , block_expr ;
+
+generic_params = "<" , ident , { "," , ident } , ">" ;
+
+param          = ident , ":" , type ;
+
+where_clause   = "where" , ident , ":" , trait_bound , { "," , ident , ":" , trait_bound } ;
+trait_bound    = ident , [ "+" , trait_bound ] ;
+
+struct_def     = [ "pub" ] , "struct" , ident , [ generic_params ] , "{" , { field_def } , "}" ;
+field_def      = [ "pub" ] , ident , ":" , type , ";" ;
+
+impl_def       = "impl" , [ generic_params ] , ident , [ where_clause ] , "{" , { function_def } , "}" ;
+
+type_alias     = "type" , ident , [ generic_params ] , "=" , type , ";" ;
+
+const_def      = [ "pub" ] , "const" , ident , ":" , type , "=" , expression , ";" ;
+
+static_def     = [ "pub" ] , "static" , [ "mut" ] , ident , ":" , type , "=" , expression , ";" ;
+
+mod_def        = [ "pub" ] , "mod" , ident , ( ";" | "{" , { item } , "}" ) ;
+
+use_def        = "use" , use_path , ";" ;
+use_path       = ident , { "::" , ident } , [ "::" , "{" , use_item , { "," , use_item } , "}" | "::" , "*" ] ;
+use_item       = ident , [ "as" , ident ] ;
+
+extern_block   = "extern" , [ string_lit ] , "{" , { extern_item } , "}" ;
+extern_item    = [ "pub" ] , "fn" , ident , "(" , [ param , { "," , param } ] , ")" , [ "->" , type ] , ";" 
+               | [ "pub" ] , "static" , [ "mut" ] , ident , ":" , type , ";" ;
+
+(* ============================================================
+   MÓDULOS Y VISIBILIDAD
+   ============================================================ *)
+
+(* Visibilidad: pub = público, (default) = privado al módulo *)
+(* Archivo: src/main.zen o lib.zen -> crate root *)
+
+(* ============================================================
+   ATRIBUTOS (Para futuras extensiones)
+   ============================================================ *)
+
+attribute      = "#" , "[" , ident , [ "(" , [ attribute_args ] , ")" ] , "]" ;
+attribute_args = expression , { "," , expression } ;
+
+(* ============================================================
+   NOTAS DE DISEÑO
+   ============================================================ *)
+
+(* 1. Sintaxis inspirada en Rust/C/Zig pero con decisiones propias:
+   - `fn` para funciones (como Rust)
+   - `let mut` para variables mutables (como Rust)
+   - `as` para casting explícito (como Rust)
+   - `&` / `&mut` para referencias, `*` para deref, `&&` para raw pointers (diferencia: raw ptr explícito)
+   - `struct` + `impl` separados (como Rust)
+   - `type` para aliases (como Rust)
+   - `match` para pattern matching (como Rust)
+   - `never` type para funciones que no retornan
+   - `extern` blocks para FFI (como Rust)
+   - Atributos `#[...]` (como Rust)
+*)
+
+(* 2. Diferencias clave vs Rust:
+   - No ownership/borrowing en MVP (Fase 3+)
+   - `&&` para raw pointers (distinto de `*const T` / `*mut T`)
+   - `cast`/`transmute` keywords reservadas para unsafe ops
+   - `sizeof`/`alignof`/`offsetof` como keywords (no macros)
+   - Semicolons requeridos tras statements (no expression-oriented en top-level)
+*)
+
+(* 3. Precedencia de operadores (mayor a menor):
+   1. Postfix: . [] () ? 
+   2. Unary: - ! ~ & &mut * ++ --
+   3. Cast: as
+   4. Multiplicative: * / %
+   5. Additive: + -
+   6. Shift: << >>
+   7. Bitwise AND: &
+   8. Bitwise XOR: ^
+   9. Bitwise OR: |
+   10. Relational: < > <= >=
+   11. Equality: == !=
+   12. Logical AND: &&
+   13. Logical OR: ||
+   14. Assignment: = += -= *= /= %= &= |= ^= <<= >>=
+*)
+
+(* 4. Keywords reservadas para futuras fases:
+   - async/await, try/catch, yield, generator
+   - trait, interface, virtual, override
+   - macro, macro_rules
+   - const generics, associated types
+   - inline, noinline, cold, hot
+   - link_section, export_name, no_mangle
+*)
+
+(* ============================================================
+   EJEMPLOS VÁLIDOS (Referencia)
+   ============================================================ *)
+
+(* hello.zen *)
+(*
+fn main() -> i32 {
+    print("Hello, Zen!\n");
+    return 0;
+}
+*)
+
+(* factorial.zen *)
+(*
+fn factorial(n: u64) -> u64 {
+    if n <= 1 { return 1; }
+    return n * factorial(n - 1);
+}
+*)
+
+(* structs.zen *)
+(*
+struct Point { x: f64, y: f64 }
+impl Point {
+    fn new(x: f64, y: f64) -> Self { return Point { x, y }; }
+    fn distance(&self, other: &Point) -> f64 { ... }
+}
+*)

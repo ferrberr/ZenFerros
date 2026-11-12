@@ -1,0 +1,58 @@
+{
+  "negatives": [
+    "trunc-0",
+    "trunc-4",
+    "trunc-7",
+    "trunc-16",
+    "trunc-51",
+    "trunc-52",
+    "trunc-54",
+    "trunc-63",
+    "trunc-64",
+    "trunc-119",
+    "trunc-120",
+    "trunc-20215",
+    "phoff",
+    "phnum",
+    "phentsize",
+    "shoff",
+    "shentsize",
+    "entry"
+  ],
+  "source_override": {
+    "artifact_path": "/tmp/task711-user-negative/override/ferros-user.elf",
+    "source_path": "/tmp/task711-user-negative/override.zen",
+    "release": false,
+    "undefined_symbols": 0,
+    "build_seconds": 0.052558,
+    "entry": 1073741824,
+    "bytes": 16016,
+    "load_segments": [
+      {
+        "address": 1073741824,
+        "file_offset": 4096,
+        "file_bytes": 4096,
+        "memory_bytes": 4096,
+        "page_end": 1073745920,
+        "flags": 5
+      },
+      {
+        "address": 1073745920,
+        "file_offset": 8192,
+        "file_bytes": 4096,
+        "memory_bytes": 4096,
+        "page_end": 1073750016,
+        "flags": 4
+      },
+      {
+        "address": 1073750016,
+        "file_offset": 4096,
+        "file_bytes": 0,
+        "memory_bytes": 4096,
+        "page_end": 1073754112,
+        "flags": 6
+      }
+    ],
+    "bss_bytes": 4096
+  }
+}

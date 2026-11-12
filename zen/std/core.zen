@@ -1,0 +1,67 @@
+// Zen core standard library (bootstrap subset).
+//
+// Pure integer helpers distributed as plain Zen source. Include them with a
+// relative `use` directive before the first item of your file:
+//
+//     use "../std/core.zen";
+//
+// Includes are textual and there are no namespaces: these functions live in
+// the same global namespace as the including program. They never allocate,
+// never perform I/O and never rely on libc.
+
+/// Smaller of two `u64` values.
+pub fn min_u64(a: u64, b: u64) -> u64 {
+    if a < b {
+        return a;
+    }
+    return b;
+}
+
+/// Larger of two `u64` values.
+pub fn max_u64(a: u64, b: u64) -> u64 {
+    if a > b {
+        return a;
+    }
+    return b;
+}
+
+/// Clamp `value` into `[low, high]`. Callers must pass `low <= high`.
+pub fn clamp_u64(value: u64, low: u64, high: u64) -> u64 {
+    if value < low {
+        return low;
+    }
+    if value > high {
+        return high;
+    }
+    return value;
+}
+
+/// Absolute difference between two `u64` values without underflow.
+pub fn abs_diff_u64(a: u64, b: u64) -> u64 {
+    if a >= b {
+        return a - b;
+    }
+    return b - a;
+}
+
+/// `true` when `n` is divisible by two.
+pub fn is_even(n: u64) -> bool {
+    return n % 2 == 0;
+}
+
+/// `true` when `n` is not divisible by two.
+pub fn is_odd(n: u64) -> bool {
+    return n % 2 == 1;
+}
+
+/// Greatest common divisor by the Euclidean algorithm; `gcd_u64(0, 0)` is 0.
+pub fn gcd_u64(a: u64, b: u64) -> u64 {
+    let mut x: u64 = a;
+    let mut y: u64 = b;
+    while y != 0 {
+        let remainder: u64 = x % y;
+        x = y;
+        y = remainder;
+    }
+    return x;
+}

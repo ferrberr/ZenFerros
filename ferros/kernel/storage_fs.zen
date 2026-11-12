@@ -1,0 +1,527 @@
+// TASK-916: persistent mini filesystem on top of the ATA PIO driver.
+//
+// Disk layout (little endian, 512-byte sectors, LBA28):
+//   LBA 16      superblock: "ZENFS01" + NUL pad, version u32 = 1,
+//               inode count u32 = 8, FNV-1a32 of bytes +0..+15 at +16,
+//               rest reserved and zero.
+//   LBA 17..24  one 64-byte inode per sector (inode i at LBA 17+i):
+//               +0  name[24] NUL padded
+//               +24 size u64
+//               +32 start_lba u32
+//               +36 used u8 (1 = allocated)
+//               +37..63 reserved
+//   LBA 25..32  one 512-byte data block per inode (file i at LBA 25+i).
+//
+// Sector 0 still belongs to the TASK-914 boot counter (storage.zen); this
+// filesystem never touches it.  There is no cache, journal, directory or
+// multi-block file: one file = one inode = one data sector.
+//
+// API errors: -1 invalid argument (bad name, duplicate, size > 512, null
+// pointer; non-null buffers are caller-owned and must be valid), -2 ATA
+// unavailable/IO error, -3 corrupt or unformatted superblock, -4 inode table
+// full, -5 ENOENT.
+//
+// Every public call reserves one 512-byte heap buffer and reuses it for all
+// the sectors it touches.  heap_alloc has no free(), so the kernel only uses
+// this API from pfs_boot(); tests stay far below the 64 KiB heap.
+//
+// pfs_boot() is called after storage_boot() and before the ring-3 shell.  It
+// formats an invalid superblock, increments (or creates) boot.txt and prints
+// "PFS: BOOT <n> FILES=<n>".  Any ATA failure prints "PFS: UNAVAILABLE" and
+// the boot continues; persistence is optional and never a reason to panic.
+
+fn pfs_zero(buffer:u64) {
+    let mut index:u64=0;
+    while index<512u64 {
+        memory_write8(buffer+index,0u8);
+        index+=1u64;
+    }
+}
+
+fn pfs_store32(address:u64,value:u64) {
+    memory_write8(address,(value & 0xffu64) as u8);
+    memory_write8(address+1u64,((value>>8u64) & 0xffu64) as u8);
+    memory_write8(address+2u64,((value>>16u64) & 0xffu64) as u8);
+    memory_write8(address+3u64,((value>>24u64) & 0xffu64) as u8);
+}
+
+fn pfs_magic_write(buffer:u64) {
+    let magic:str="ZENFS01";
+    let mut index:u64=0;
+    while index<7u64 {
+        memory_write8(buffer+index,str_byte(magic,index));
+        index+=1u64;
+    }
+    memory_write8(buffer+7u64,0u8);
+}
+
+fn pfs_magic_ok(buffer:u64)->bool {
+    let magic:str="ZENFS01";
+    let mut index:u64=0;
+    while index<7u64 {
+        if memory_read8(buffer+index)!=str_byte(magic,index) { return false; }
+        index+=1u64;
+    }
+    return memory_read8(buffer+7u64)==0u8;
+}
+
+// FNV-1a 32 computed in u64 and masked, like the selfhost checksums, so the
+// result never depends on how the backend handles u32 multiplication.
+fn pfs_fnv32(base:u64,length:u64)->u64 {
+    let mut hash:u64=2166136261u64;
+    let mut index:u64=0;
+    while index<length {
+        hash=((hash ^ (memory_read8(base+index) as u64)) * 16777619u64) & 4294967295u64;
+        index+=1u64;
+    }
+    return hash;
+}
+
+// Superblock validity: magic, version, inode count and the FNV-1a32 of the
+// first 16 bytes stored at +16.  Anything else is treated as unformatted.
+fn pfs_super_valid(buffer:u64)->bool {
+    if !pfs_magic_ok(buffer) { return false; }
+    if memory_read32(buffer+8u64)!=1u64 { return false; }
+    if memory_read32(buffer+12u64)!=8u64 { return false; }
+    return memory_read32(buffer+16u64)==pfs_fnv32(buffer,16u64);
+}
+
+// File names: 1..23 printable ASCII bytes, no NUL, no '/'.
+fn pfs_name_ok(name:str)->bool {
+    let length:u64=str_len(name);
+    if length<1u64 || length>23u64 { return false; }
+    let mut index:u64=0;
+    while index<length {
+        let byte:u8=str_byte(name,index);
+        if byte<32u8 || byte>126u8 || byte==47u8 { return false; }
+        index+=1u64;
+    }
+    return true;
+}
+
+// Inode descriptor in a scratch sector: one inode per LBA.
+fn pfs_inode_lba(index:u64)->u64 {
+    return 17u64+index;
+}
+
+fn pfs_data_lba(index:u64)->u64 {
+    return 25u64+index;
+}
+
+fn pfs_inode_used(buffer:u64)->bool {
+    return memory_read8(buffer+36u64)==1u8;
+}
+
+fn pfs_inode_size(buffer:u64)->u64 {
+    return memory_read64(buffer+24u64);
+}
+
+fn pfs_write_name(buffer:u64,name:str) {
+    let mut index:u64=0;
+    while index<str_len(name) {
+        memory_write8(buffer+index,str_byte(name,index));
+        index+=1u64;
+    }
+}
+
+// A stored name is NUL padded, so the byte after the name must be NUL too.
+fn pfs_name_equals(buffer:u64,name:str)->bool {
+    let length:u64=str_len(name);
+    let mut index:u64=0;
+    while index<length {
+        if memory_read8(buffer+index)!=str_byte(name,index) { return false; }
+        index+=1u64;
+    }
+    return memory_read8(buffer+length)==0u8;
+}
+
+fn pfs_unavailable() {
+    serial_write("PFS: UNAVAILABLE\n");
+}
+
+// Format the superblock and clear all eight inode sectors.  The caller owns
+// the scratch buffer and has already read LBA 16 into it.
+fn pfs_format(buffer:u64)->i64 {
+    // Clear the inode table first and publish the superblock last, so an
+    // interrupted format leaves an invalid superblock instead of stale inodes.
+    pfs_zero(buffer);
+    let mut index:u64=0;
+    while index<8u64 {
+        if ata_write_sector(pfs_inode_lba(index),buffer)<0i64 { return -2i64; }
+        index+=1u64;
+    }
+    pfs_magic_write(buffer);
+    pfs_store32(buffer+8u64,1u64);
+    pfs_store32(buffer+12u64,8u64);
+    pfs_store32(buffer+16u64,pfs_fnv32(buffer,16u64));
+    if ata_write_sector(16u64,buffer)<0i64 { return -2i64; }
+    if ata_flush()<0i64 { return -2i64; }
+    return 0i64;
+}
+
+// Read and validate the superblock; -2 I/O, -3 corrupt.
+fn pfs_check(buffer:u64)->i64 {
+    if ata_read_sector(16u64,buffer)<0i64 { return -2i64; }
+    if !pfs_super_valid(buffer) { return -3i64; }
+    return 0i64;
+}
+
+// Walk the eight inodes with an already validated superblock.  On success the
+// scratch buffer holds the matching inode sector.
+fn pfs_lookup(name:str,buffer:u64)->i64 {
+    let mut index:u64=0;
+    while index<8u64 {
+        if ata_read_sector(pfs_inode_lba(index),buffer)<0i64 { return -2i64; }
+        if pfs_inode_used(buffer) && pfs_name_equals(buffer,name) {
+            return index as i64;
+        }
+        index+=1u64;
+    }
+    return -5i64;
+}
+
+fn pfs_find(name:str)->i64 {
+    if !pfs_name_ok(name) { return -1i64; }
+    let buffer:u64=heap_alloc(512u64,16u64);
+    if buffer==0u64 { return -2i64; }
+    let state:i64=pfs_check(buffer);
+    if state<0i64 { return state; }
+    return pfs_lookup(name,buffer);
+}
+
+// TASK-919: read-only ZENFS01 snapshot for the VFS.
+//
+// `vfs.zen` is also compiled by host tests that do not link this unit, so it
+// cannot reference the ATA heap API directly. `pfs_export` copies every used
+// inode through the same read path as pfs_read into a supervisor-owned cache;
+// the VFS then serves open/read/readdir from that immutable snapshot. The disk
+// is never written from the VFS. Cache layout (little endian):
+//   +0    u64 file count (written last; 0 means "not published")
+//   +8    8 entries of 32 bytes: name[24] + size u64
+//   +264  8 data blocks of 512 bytes (entry i at +264+i*512)
+// Total 4360 bytes; main.zen reserves 8192.
+fn pfs_ptr_length(name:u64)->u64 {
+    let mut length:u64=0;
+    while length<=23u64 {
+        if memory_read8(name+length)==0u8 { return length; }
+        length+=1u64;
+    }
+    return 24u64;
+}
+
+fn pfs_ptr_name_ok(name:u64)->bool {
+    let length:u64=pfs_ptr_length(name);
+    if length<1u64 || length>23u64 { return false; }
+    let mut index:u64=0;
+    while index<length {
+        let byte:u8=memory_read8(name+index);
+        if byte<32u8 || byte>126u8 || byte==47u8 { return false; }
+        index+=1u64;
+    }
+    return true;
+}
+
+// A stored name is NUL padded, so the byte after the pointer name must be NUL.
+fn pfs_name_ptr_equals(buffer:u64,name:u64)->bool {
+    let length:u64=pfs_ptr_length(name);
+    if length<1u64 || length>23u64 { return false; }
+    let mut index:u64=0;
+    while index<length {
+        if memory_read8(buffer+index)!=memory_read8(name+index) { return false; }
+        index+=1u64;
+    }
+    return memory_read8(buffer+length)==0u8;
+}
+
+// Internal read-by-pointer used to build the snapshot. It is the same logic as
+// pfs_read (validate superblock, find inode, clamp to size/512, copy data).
+fn pfs_disk_read_ptr(name:u64,dst:u64,max:u64)->i64 {
+    if !pfs_ptr_name_ok(name) { return -1i64; }
+    let mut limit:u64=max;
+    if limit>512u64 { limit=512u64; }
+    if limit>0u64 && dst==0u64 { return -1i64; }
+    let buffer:u64=heap_alloc(512u64,16u64);
+    if buffer==0u64 { return -2i64; }
+    let state:i64=pfs_check(buffer);
+    if state<0i64 { return state; }
+    let mut index:u64=0;
+    while index<8u64 {
+        if ata_read_sector(pfs_inode_lba(index),buffer)<0i64 { return -2i64; }
+        if pfs_inode_used(buffer) && pfs_name_ptr_equals(buffer,name) {
+            let still:u64=pfs_inode_size(buffer);
+            let mut count:u64=still;
+            if count>limit { count=limit; }
+            if count==0u64 { return 0i64; }
+            if ata_read_sector(pfs_data_lba(index),buffer)<0i64 { return -2i64; }
+            let mut offset:u64=0;
+            while offset<count {
+                memory_write8(dst+offset,memory_read8(buffer+offset));
+                offset+=1u64;
+            }
+            return count as i64;
+        }
+        index+=1u64;
+    }
+    return -5i64;
+}
+
+// Publish the read-only snapshot. The caller owns `cache` and must keep it
+// alive (the kernel heap has no free). Returns 0 only when the count was
+// published; otherwise the VFS keeps the pre-TASK-919 RAMFS-only behaviour.
+fn pfs_export(cache:u64)->i64 {
+    if cache==0u64 { return -1i64; }
+    memory_store64(cache,0u64);
+    let buffer:u64=heap_alloc(512u64,16u64);
+    if buffer==0u64 { return -2i64; }
+    let state:i64=pfs_check(buffer);
+    if state<0i64 { return state; }
+    let mut count:u64=0;
+    let mut boot_seen:bool=false;
+    let mut index:u64=0;
+    while index<8u64 {
+        if ata_read_sector(pfs_inode_lba(index),buffer)<0i64 { return -2i64; }
+        if pfs_inode_used(buffer) {
+            if pfs_name_equals(buffer,"boot.txt") { boot_seen=true; }
+            let entry:u64=cache+8u64+count*32u64;
+            let mut name_byte:u64=0;
+            while name_byte<24u64 {
+                memory_write8(entry+name_byte,memory_read8(buffer+name_byte));
+                name_byte+=1u64;
+            }
+            let mut size:u64=pfs_inode_size(buffer);
+            if size>512u64 { size=512u64; }
+            memory_store64(entry+24u64,size);
+            let data:u64=cache+264u64+count*512u64;
+            let read:i64=pfs_disk_read_ptr(buffer,data,512u64);
+            if read<0i64 { return read; }
+            count+=1u64;
+        }
+        index+=1u64;
+    }
+    // An invalid/full filesystem without boot.txt leaves the VFS in its
+    // pre-TASK-919 state instead of failing vfs_self_test later.
+    if !boot_seen { memory_store64(cache,0u64); return -5i64; }
+    memory_store64(cache,count);
+    return 0i64;
+}
+
+fn pfs_list()->u32 {
+    let buffer:u64=heap_alloc(512u64,16u64);
+    if buffer==0u64 { return 0u32; }
+    if pfs_check(buffer)<0i64 { return 0u32; }
+    let mut count:u64=0;
+    let mut index:u64=0;
+    while index<8u64 {
+        if ata_read_sector(pfs_inode_lba(index),buffer)<0i64 { return 0u32; }
+        if pfs_inode_used(buffer) { count+=1u64; }
+        index+=1u64;
+    }
+    return count as u32;
+}
+
+fn pfs_create(name:str)->i64 {
+    if !pfs_name_ok(name) { return -1i64; }
+    let buffer:u64=heap_alloc(512u64,16u64);
+    if buffer==0u64 { return -2i64; }
+    let state:i64=pfs_check(buffer);
+    if state<0i64 { return state; }
+    // Detect duplicates before choosing a free slot; the first free slot wins.
+    let mut free:u64=8u64;
+    let mut index:u64=0;
+    while index<8u64 {
+        if ata_read_sector(pfs_inode_lba(index),buffer)<0i64 { return -2i64; }
+        if pfs_inode_used(buffer) {
+            if pfs_name_equals(buffer,name) { return -1i64; }
+        } else if free==8u64 {
+            free=index;
+        }
+        index+=1u64;
+    }
+    if free==8u64 { return -4i64; }
+    pfs_zero(buffer);
+    pfs_write_name(buffer,name);
+    // size stays zero; start_lba is fixed by the layout, used marks the inode.
+    pfs_store32(buffer+32u64,pfs_data_lba(free));
+    memory_write8(buffer+36u64,1u8);
+    if ata_write_sector(pfs_inode_lba(free),buffer)<0i64 { return -2i64; }
+    if ata_flush()<0i64 { return -2i64; }
+    return free as i64;
+}
+
+fn pfs_write(name:str,src:u64,len:u64)->i64 {
+    if !pfs_name_ok(name) { return -1i64; }
+    if len>512u64 { return -1i64; }
+    if len>0u64 && src==0u64 { return -1i64; }
+    let buffer:u64=heap_alloc(512u64,16u64);
+    if buffer==0u64 { return -2i64; }
+    let state:i64=pfs_check(buffer);
+    if state<0i64 { return state; }
+    let found:i64=pfs_lookup(name,buffer);
+    if found<0i64 { return found; }
+    let slot:u64=found as u64;
+    // Write the single data block first, then persist the new size.
+    pfs_zero(buffer);
+    let mut index:u64=0;
+    while index<len {
+        memory_write8(buffer+index,memory_read8(src+index));
+        index+=1u64;
+    }
+    if ata_write_sector(pfs_data_lba(slot),buffer)<0i64 { return -2i64; }
+    if ata_read_sector(pfs_inode_lba(slot),buffer)<0i64 { return -2i64; }
+    memory_store64(buffer+24u64,len);
+    pfs_store32(buffer+32u64,pfs_data_lba(slot));
+    memory_write8(buffer+36u64,1u8);
+    if ata_write_sector(pfs_inode_lba(slot),buffer)<0i64 { return -2i64; }
+    if ata_flush()<0i64 { return -2i64; }
+    return len as i64;
+}
+
+fn pfs_read(name:str,dst:u64,max:u64)->i64 {
+    if !pfs_name_ok(name) { return -1i64; }
+    let mut limit:u64=max;
+    if limit>512u64 { limit=512u64; }
+    if limit>0u64 && dst==0u64 { return -1i64; }
+    let buffer:u64=heap_alloc(512u64,16u64);
+    if buffer==0u64 { return -2i64; }
+    let state:i64=pfs_check(buffer);
+    if state<0i64 { return state; }
+    let found:i64=pfs_lookup(name,buffer);
+    if found<0i64 { return found; }
+    let still:u64=pfs_inode_size(buffer);
+    let mut count:u64=still;
+    if count>limit { count=limit; }
+    if count==0u64 { return 0i64; }
+    if ata_read_sector(pfs_data_lba(found as u64),buffer)<0i64 { return -2i64; }
+    let mut index:u64=0;
+    while index<count {
+        memory_write8(dst+index,memory_read8(buffer+index));
+        index+=1u64;
+    }
+    return count as i64;
+}
+
+fn pfs_delete(name:str)->i64 {
+    if !pfs_name_ok(name) { return -1i64; }
+    let buffer:u64=heap_alloc(512u64,16u64);
+    if buffer==0u64 { return -2i64; }
+    let state:i64=pfs_check(buffer);
+    if state<0i64 { return state; }
+    let found:i64=pfs_lookup(name,buffer);
+    if found<0i64 { return found; }
+    // Clearing the whole 64-byte inode marks the slot free and drops the name.
+    pfs_zero(buffer);
+    if ata_write_sector(pfs_inode_lba(found as u64),buffer)<0i64 { return -2i64; }
+    if ata_flush()<0i64 { return -2i64; }
+    return 0i64;
+}
+
+// boot.txt holds "boot=<decimal>\n".  Parse strictly: prefix, at least one
+// digit, no junk, and saturate to 0 (treated as corrupt) on overflow.
+fn pfs_parse_boot(buffer:u64,length:u64)->u64 {
+    // The inode size is on-disk data: never scan past the 512-byte buffer.
+    let mut total:u64=length;
+    if total>512u64 { total=512u64; }
+    if total<6u64 { return 0u64; }
+    if memory_read8(buffer)!=98u8 { return 0u64; }      // b
+    if memory_read8(buffer+1u64)!=111u8 { return 0u64; } // o
+    if memory_read8(buffer+2u64)!=111u8 { return 0u64; } // o
+    if memory_read8(buffer+3u64)!=116u8 { return 0u64; } // t
+    if memory_read8(buffer+4u64)!=61u8 { return 0u64; }  // =
+    let mut value:u64=0;
+    let mut digits:u64=0;
+    let mut index:u64=5u64;
+    while index<total {
+        let byte:u8=memory_read8(buffer+index);
+        if byte==10u8 { break; }
+        if byte<48u8 || byte>57u8 { return 0u64; }
+        let digit:u64=(byte-48u8) as u64;
+        if value>(18446744073709551615u64-digit)/10u64 { return 0u64; }
+        value=value*10u64+digit;
+        digits+=1u64;
+        index+=1u64;
+    }
+    if digits==0u64 { return 0u64; }
+    return value;
+}
+
+fn pfs_put_uint(buffer:u64,offset:u64,value:u64)->u64 {
+    let mut position:u64=offset;
+    if value>=10u64 { position=pfs_put_uint(buffer,offset,value/10u64); }
+    memory_write8(buffer+position,48u8+(value%10u64) as u8);
+    return position+1u64;
+}
+
+fn pfs_boot_text(buffer:u64,counter:u64)->u64 {
+    pfs_zero(buffer);
+    memory_write8(buffer,98u8);        // b
+    memory_write8(buffer+1u64,111u8);  // o
+    memory_write8(buffer+2u64,111u8);  // o
+    memory_write8(buffer+3u64,116u8);  // t
+    memory_write8(buffer+4u64,61u8);   // =
+    let end:u64=pfs_put_uint(buffer,5u64,counter);
+    memory_write8(buffer+end,10u8);    // \n
+    return end+1u64;
+}
+
+fn pfs_boot() {
+    let buffer:u64=heap_alloc(512u64,16u64);
+    if buffer==0u64 { pfs_unavailable(); return; }
+    if ata_read_sector(16u64,buffer)<0i64 { pfs_unavailable(); return; }
+    if !pfs_super_valid(buffer) {
+        if pfs_format(buffer)<0i64 { pfs_unavailable(); return; }
+    }
+
+    // One pass over the inode table: file count, first free slot, boot.txt.
+    let mut index:u64=0;
+    let mut free:u64=8u64;
+    let mut boot_slot:u64=8u64;
+    let mut boot_size:u64=0u64;
+    let mut files:u64=0u64;
+    while index<8u64 {
+        if ata_read_sector(pfs_inode_lba(index),buffer)<0i64 { pfs_unavailable(); return; }
+        if pfs_inode_used(buffer) {
+            files+=1u64;
+            if pfs_name_equals(buffer,"boot.txt") && boot_slot==8u64 {
+                boot_slot=index;
+                boot_size=pfs_inode_size(buffer);
+            }
+        } else if free==8u64 {
+            free=index;
+        }
+        index+=1u64;
+    }
+
+    let mut counter:u64=1u64;
+    if boot_slot<8u64 {
+        if ata_read_sector(pfs_data_lba(boot_slot),buffer)<0i64 { pfs_unavailable(); return; }
+        counter=pfs_parse_boot(buffer,boot_size);
+        if counter==0u64 || counter==18446744073709551615u64 { counter=1u64; }
+        else { counter+=1u64; }
+    } else {
+        // First boot after formatting: create boot.txt in the first free slot.
+        if free==8u64 { pfs_unavailable(); return; }
+        boot_slot=free;
+        pfs_zero(buffer);
+        pfs_write_name(buffer,"boot.txt");
+        pfs_store32(buffer+32u64,pfs_data_lba(boot_slot));
+        memory_write8(buffer+36u64,1u8);
+        if ata_write_sector(pfs_inode_lba(boot_slot),buffer)<0i64 { pfs_unavailable(); return; }
+        files+=1u64;
+    }
+
+    let size:u64=pfs_boot_text(buffer,counter);
+    if ata_write_sector(pfs_data_lba(boot_slot),buffer)<0i64 { pfs_unavailable(); return; }
+    // Persist the exact text length in the inode (it changes with the digits).
+    if ata_read_sector(pfs_inode_lba(boot_slot),buffer)<0i64 { pfs_unavailable(); return; }
+    memory_store64(buffer+24u64,size);
+    pfs_store32(buffer+32u64,pfs_data_lba(boot_slot));
+    memory_write8(buffer+36u64,1u8);
+    if ata_write_sector(pfs_inode_lba(boot_slot),buffer)<0i64 { pfs_unavailable(); return; }
+    if ata_flush()<0i64 { pfs_unavailable(); return; }
+
+    serial_write("PFS: BOOT ");
+    serial_uint(counter);
+    serial_write(" FILES=");
+    serial_uint(files);
+    serial_write("\n");
+}

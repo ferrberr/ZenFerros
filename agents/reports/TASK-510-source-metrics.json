@@ -1,0 +1,65 @@
+{
+  "method": "nonblank lines after removing C-style block and // comments in current authored sources",
+  "zen_kernel": [
+    {
+      "path": "ferros/kernel/arch/x86_64/abi.zen",
+      "physical_lines": 36,
+      "code_lines": 35
+    },
+    {
+      "path": "ferros/kernel/drivers/serial.zen",
+      "physical_lines": 44,
+      "code_lines": 38
+    },
+    {
+      "path": "ferros/kernel/interrupts.zen",
+      "physical_lines": 92,
+      "code_lines": 81
+    },
+    {
+      "path": "ferros/kernel/main.zen",
+      "physical_lines": 24,
+      "code_lines": 23
+    },
+    {
+      "path": "ferros/kernel/memory.zen",
+      "physical_lines": 320,
+      "code_lines": 303
+    },
+    {
+      "path": "ferros/kernel/runtime.zen",
+      "physical_lines": 13,
+      "code_lines": 10
+    }
+  ],
+  "assembly_primitives": [
+    {
+      "path": "ferros/kernel/arch/x86_64/interrupts.S",
+      "physical_lines": 252,
+      "code_lines": 234
+    },
+    {
+      "path": "ferros/kernel/arch/x86_64/io.S",
+      "physical_lines": 137,
+      "code_lines": 118
+    }
+  ],
+  "assembly_bootstrap": [
+    {
+      "path": "ferros/boot/entry.S",
+      "physical_lines": 126,
+      "code_lines": 98
+    }
+  ],
+  "linker_configuration": [
+    {
+      "path": "ferros/boot/linker.ld",
+      "physical_lines": 47,
+      "code_lines": 43
+    }
+  ],
+  "kernel_zen_percent_excluding_boot": 58.19,
+  "zen_percent_including_boot_assembly": 52.13,
+  "generated_c_physical_lines": 2752,
+  "external_dependencies_in_kernel": 0
+}

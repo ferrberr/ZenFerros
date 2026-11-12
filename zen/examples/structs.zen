@@ -1,0 +1,81 @@
+// Structs nominales mínimas (TASK-214).
+// Solo variables locales con campos escalares: declaración, construcción,
+// lectura `p.campo` y escritura `p.campo = ...` / compuestas.
+// Sin métodos, genéricos, anidamiento, arrays como campo ni copia completa.
+
+struct Token {
+    kind: u32,
+    line: u32,
+    column: u32,
+    valid: bool,
+}
+
+struct Stats {
+    tokens: u64,
+    errors: u32,
+    accepted: bool,
+}
+
+fn main() -> i32 {
+    // Los campos del literal pueden venir en cualquier orden.
+    let mut token: Token = Token {
+        column: 12,
+        kind: 7,
+        line: 3,
+        valid: true,
+    };
+    print("token=");
+    print_uint(token.kind as u64);
+    print(" at ");
+    print_uint(token.line as u64);
+    print(":");
+    print_uint(token.column as u64);
+    print(" valid=");
+    if token.valid {
+        print("yes");
+    } else {
+        print("no");
+    }
+    print("\n");
+
+    // Escritura simple y compuesta; el contador envuelve como el resto de Zen.
+    token.column += 1;
+    token.line = token.line + 10;
+    token.valid = false;
+
+    let mut stats: Stats = Stats {
+        tokens: 1,
+        errors: 0,
+        accepted: true,
+    };
+    stats.tokens += 2;
+    stats.errors += 1;
+    stats.accepted = stats.errors == 0;
+
+    print("token=");
+    print_uint(token.kind as u64);
+    print(" at ");
+    print_uint(token.line as u64);
+    print(":");
+    print_uint(token.column as u64);
+    print(" valid=");
+    if token.valid {
+        print("yes");
+    } else {
+        print("no");
+    }
+    print("\n");
+
+    print("stats=");
+    print_uint(stats.tokens);
+    print(",");
+    print_uint(stats.errors as u64);
+    print(",");
+    if stats.accepted {
+        print("yes");
+    } else {
+        print("no");
+    }
+    print("\n");
+    return 0;
+}

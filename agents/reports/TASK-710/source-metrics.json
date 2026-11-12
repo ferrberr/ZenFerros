@@ -1,0 +1,85 @@
+{
+  "method": "nonblank lines after removing C-style block and // comments in current authored sources",
+  "zen_kernel": [
+    {
+      "path": "ferros/kernel/arch/x86_64/abi.zen",
+      "physical_lines": 53,
+      "code_lines": 52
+    },
+    {
+      "path": "ferros/kernel/drivers/serial.zen",
+      "physical_lines": 50,
+      "code_lines": 42
+    },
+    {
+      "path": "ferros/kernel/interrupts.zen",
+      "physical_lines": 132,
+      "code_lines": 118
+    },
+    {
+      "path": "ferros/kernel/main.zen",
+      "physical_lines": 35,
+      "code_lines": 34
+    },
+    {
+      "path": "ferros/kernel/memory.zen",
+      "physical_lines": 335,
+      "code_lines": 316
+    },
+    {
+      "path": "ferros/kernel/runtime.zen",
+      "physical_lines": 13,
+      "code_lines": 10
+    },
+    {
+      "path": "ferros/kernel/scheduler.zen",
+      "physical_lines": 242,
+      "code_lines": 219
+    },
+    {
+      "path": "ferros/kernel/userspace.zen",
+      "physical_lines": 287,
+      "code_lines": 270
+    }
+  ],
+  "assembly_primitives": [
+    {
+      "path": "ferros/kernel/arch/x86_64/context.S",
+      "physical_lines": 262,
+      "code_lines": 223
+    },
+    {
+      "path": "ferros/kernel/arch/x86_64/interrupts.S",
+      "physical_lines": 258,
+      "code_lines": 238
+    },
+    {
+      "path": "ferros/kernel/arch/x86_64/io.S",
+      "physical_lines": 137,
+      "code_lines": 118
+    },
+    {
+      "path": "ferros/kernel/arch/x86_64/userspace.S",
+      "physical_lines": 167,
+      "code_lines": 143
+    }
+  ],
+  "assembly_bootstrap": [
+    {
+      "path": "ferros/boot/entry.S",
+      "physical_lines": 126,
+      "code_lines": 98
+    }
+  ],
+  "linker_configuration": [
+    {
+      "path": "ferros/boot/linker.ld",
+      "physical_lines": 47,
+      "code_lines": 43
+    }
+  ],
+  "kernel_zen_percent_excluding_boot": 59.51,
+  "zen_percent_including_boot_assembly": 56.41,
+  "generated_c_physical_lines": 6533,
+  "external_dependencies_in_kernel": 0
+}

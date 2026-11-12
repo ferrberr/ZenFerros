@@ -1,0 +1,27 @@
+// Benchmark: Collatz step count over 1..=500k. Branch-heavy, no recursion, so
+// every compiler sees the same control flow without recursive-inlining
+// heuristics (Zen cannot currently request noinline, C/C++/Rust can).
+fn steps(n: u64) -> u64 {
+    let mut value: u64 = n;
+    let mut count: u64 = 0u64;
+    while value != 1u64 {
+        if value % 2u64 == 0u64 {
+            value = value / 2u64;
+        } else {
+            value = value * 3u64 + 1u64;
+        }
+        count += 1u64;
+    }
+    return count;
+}
+fn main() -> i32 {
+    let mut total: u64 = 0u64;
+    let mut n: u64 = 1u64;
+    while n <= 500000u64 {
+        total += steps(n);
+        n += 1u64;
+    }
+    print_uint(total);
+    print("\n");
+    return 0;
+}

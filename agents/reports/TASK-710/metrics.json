@@ -1,0 +1,62 @@
+[
+  {
+    "profile": "debug",
+    "elf64_bytes": 126352,
+    "elf32_bytes": 123852,
+    "user_bytes": 20216,
+    "build_seconds": 0.290891,
+    "qemu_min_seconds": 0.49522,
+    "qemu_max_seconds": 0.503414,
+    "qemu_mean_seconds": 0.49827466666666664,
+    "stats": [
+      {
+        "runs": 7,
+        "writes": 1,
+        "rejected": 6,
+        "irqs": 8
+      },
+      {
+        "runs": 7,
+        "writes": 1,
+        "rejected": 6,
+        "irqs": 8
+      },
+      {
+        "runs": 7,
+        "writes": 1,
+        "rejected": 6,
+        "irqs": 8
+      }
+    ]
+  },
+  {
+    "profile": "release",
+    "elf64_bytes": 52256,
+    "elf32_bytes": 50744,
+    "user_bytes": 13568,
+    "build_seconds": 0.540472,
+    "qemu_min_seconds": 0.342426,
+    "qemu_max_seconds": 0.344701,
+    "qemu_mean_seconds": 0.3438316666666667,
+    "stats": [
+      {
+        "runs": 7,
+        "writes": 1,
+        "rejected": 6,
+        "irqs": 1
+      },
+      {
+        "runs": 7,
+        "writes": 1,
+        "rejected": 6,
+        "irqs": 1
+      },
+      {
+        "runs": 7,
+        "writes": 1,
+        "rejected": 6,
+        "irqs": 1
+      }
+    ]
+  }
+]

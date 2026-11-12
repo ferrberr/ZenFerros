@@ -1,0 +1,753 @@
+// VFS/RAMFS layer for Ferros (Hito 7, expanded in TASK-215 and TASK-919).
+// RAMFS is a fixed 1 MiB pool: 256 blocks of 4 KiB.
+//   block 0          : block bitmap, one byte per block (256 bytes used)
+//   blocks 1..2      : inode table (128 inodes x 64 bytes = 8 KiB)
+//   block 3          : root directory (128 entries x 32 bytes)
+//   blocks 4..5      : data of hello.zen and notes.txt
+//   blocks 6..255    : free data blocks for the write path
+// Directory entry: +0 name[24] NUL padded, +24 u64 inode index. An entry whose
+// first name byte is NUL terminates the directory.
+// State is plain u64 slots in supervisor BSS, no hidden arch fields:
+//   +0 initialized, +8 total_blocks, +16 free_blocks, +24 root_inode,
+//   +32 bitmap, +40 inodes, +1032..fd->inode pointers (first free slot wins).
+// Slots 1032..1159 hold one descriptor each: a RAMFS inode pointer or the PFS
+// tag; the 24-byte name of a PFS descriptor lives at +1280+slot*24.
+// Inode layout: +0 kind (0 free,1 file,2 dir), +8 perms, +16 size,
+//   +24 block index of first (and only) data block.
+//
+// TASK-919 lookup order: RAMFS first, then ZENFS01 (read-only). A PFS descriptor
+// is tagged, so vfs_read copies through pfs_read_ptr and vfs_write returns EROFS
+// (-30). vfs_readdir lists RAMFS directory order first and then PFS inode order.
+
+fn vfs_state(offset:u64)->u64 {
+    unsafe { return volatile_load((ferros_vfs_state()+offset) as *u64); }
+}
+
+fn vfs_set(offset:u64,value:u64) {
+    unsafe { volatile_store((ferros_vfs_state()+offset) as *mut u64,value); }
+}
+
+fn vfs_pool()->u64 {
+    let mut pool:u64=0;
+    unsafe { pool=ferros_ramfs_pool(); }
+    return pool;
+}
+
+// Root inode 0 stores the root directory data block at +24.
+fn ramfs_dir()->u64 {
+    return vfs_pool()+memory_read64(vfs_state(40)+24)*4096;
+}
+
+fn ramfs_write_entry(entry:u64,name:str,index:u64) {
+    let mut i:u64=0;
+    while i<str_len(name) {
+        memory_write8(entry+i,str_byte(name,i));
+        i+=1;
+    }
+    memory_store64(entry+24,index);
+}
+
+fn vfs_init()->bool {
+    if vfs_state(0)!=0 { return false; }
+    let pool:u64=vfs_pool();
+
+    let mut offset:u64=0;
+    while offset<4096 { vfs_set(offset,0); offset+=8; }
+
+    vfs_set(8,256);
+    vfs_set(16,250); // blocks 0..5 are reserved at init: bitmap, inodes, root dir, two fixtures
+    vfs_set(32,pool);
+    vfs_set(40,pool+4096);
+    vfs_set(24,pool+4096);
+
+    // Clear the block bitmap, then reserve bitmap, inode and directory blocks
+    // together with the two immutable fixture data blocks.
+    let mut b:u64=0;
+    while b<256 {
+        memory_write8(pool+b,0u8);
+        b+=1;
+    }
+    b=0;
+    while b<6 {
+        memory_write8(pool+b,1u8);
+        b+=1;
+    }
+
+    let inodes:u64=pool+4096;
+    // Root directory inode 0.
+    memory_store64(inodes,2u64);
+    memory_store64(inodes+8,493u64); // 0o755
+    memory_store64(inodes+16,0u64);
+    memory_store64(inodes+24,3u64);
+
+    // hello.zen -> "Hello" in block 4.
+    let hello:u64=inodes+64;
+    memory_store64(hello,1u64);
+    memory_store64(hello+8,420u64); // 0o644
+    memory_store64(hello+16,5u64);
+    memory_store64(hello+24,4u64);
+    let hello_data:u64=pool+4*4096;
+    memory_write8(hello_data+0,72u8); // H
+    memory_write8(hello_data+1,101u8); // e
+    memory_write8(hello_data+2,108u8); // l
+    memory_write8(hello_data+3,108u8); // l
+    memory_write8(hello_data+4,111u8); // o
+
+    // notes.txt -> "Zen\n" in block 5.
+    let notes:u64=inodes+128;
+    memory_store64(notes,1u64);
+    memory_store64(notes+8,420u64); // 0o644
+    memory_store64(notes+16,4u64);
+    memory_store64(notes+24,5u64);
+    let notes_data:u64=pool+5*4096;
+    memory_write8(notes_data+0,90u8); // Z
+    memory_write8(notes_data+1,101u8); // e
+    memory_write8(notes_data+2,110u8); // n
+    memory_write8(notes_data+3,10u8); // \n
+
+    // Remaining inodes free.
+    let mut i:u64=3;
+    while i<128 {
+        memory_store64(inodes+i*64,0u64);
+        i+=1;
+    }
+
+    // Root directory block: two entries followed by an empty terminator.
+    let dir:u64=pool+3*4096;
+    let mut d:u64=0;
+    while d<4096 {
+        memory_write8(dir+d,0u8);
+        d+=1;
+    }
+    ramfs_write_entry(dir,"hello.zen",1u64);
+    ramfs_write_entry(dir+32,"notes.txt",2u64);
+
+    vfs_set(0,1);
+    return true;
+}
+
+fn ramfs_alloc_block()->i64 {
+    let pool:u64=vfs_pool();
+    let mut block:u64=6; // blocks 0..5 are metadata and fixture storage
+    while block<256 {
+        if memory_read8(pool+block)==0u8 {
+            memory_write8(pool+block,1u8);
+            vfs_set(16,vfs_state(16)-1);
+            return block as i64;
+        }
+        block+=1;
+    }
+    return -1;
+}
+
+fn ramfs_ensure_block(inode:u64)->i64 {
+    let b:u64=memory_read64(inode+24);
+    if b!=0 { return b as i64; }
+    let new_b:i64=ramfs_alloc_block();
+    if new_b<0 { return -1; }
+    memory_store64(inode+24,new_b as u64);
+    return new_b;
+}
+
+// Names are at most 23 bytes plus the padding NUL inside name[24].
+fn ramfs_name_length(entry:u64)->u64 {
+    let mut n:u64=0;
+    while n<24 {
+        if memory_read8(entry+n)==0u8 { return n; }
+        n+=1;
+    }
+    return 24;
+}
+
+// Compare a kernel path against one directory entry, NUL included. A name that
+// fills all 24 bytes without a NUL cannot match: entries are NUL padded.
+fn ramfs_name_equals(name:u64,entry:u64)->bool {
+    let mut i:u64=0;
+    while i<24 {
+        let a:u8=memory_read8(name+i);
+        let b:u8=memory_read8(entry+i);
+        if a!=b { return false; }
+        if a==0u8 { return true; }
+        i+=1;
+    }
+    return false;
+}
+
+// Walk the root directory entries. An empty path resolves to the root inode so
+// that directory errors remain reachable.
+fn ramfs_lookup(name:u64)->u64 {
+    if memory_read8(name)==0u8 { return vfs_state(40); }
+    let dir:u64=ramfs_dir();
+    let mut offset:u64=0;
+    while offset<4096 {
+        if memory_read8(dir+offset)==0u8 { return 0; }
+        if ramfs_name_equals(name,dir+offset) {
+            let index:u64=memory_read64(dir+offset+24);
+            if index<128 { return vfs_state(40)+index*64; }
+            return 0;
+        }
+        offset+=32;
+    }
+    return 0;
+}
+
+// PFS descriptors occupy a normal VFS slot but store this tag instead of a
+// RAMFS inode pointer. The tag is not a valid supervisor address, so a mixed
+// slot can never be mistaken for an inode.
+fn vfs_pfs_tag()->u64 {
+    return 0x5046534644000000u64;
+}
+
+fn vfs_pfs_name(fd:u64)->u64 {
+    return vfs_state_base()+1280+(fd-100)*24;
+}
+
+fn vfs_is_pfs(fd:u64)->bool {
+    if fd<100u64 || fd>=116u64 { return false; }
+    return vfs_state(1032+(fd-100)*8)==vfs_pfs_tag();
+}
+
+fn vfs_free_slot()->i64 {
+    let mut slot:u64=0;
+    while slot<16 {
+        if vfs_state(1032+slot*8)==0u64 { return slot as i64; }
+        slot+=1;
+    }
+    return -24i64;
+}
+
+// Copy up to 23 path bytes plus the terminating NUL into the descriptor name
+// area. The caller only calls this after pfs_find_ptr accepted the same path.
+fn vfs_copy_name(dst:u64,src:u64) {
+    let mut i:u64=0;
+    while i<23 {
+        let byte:u8=memory_read8(src+i);
+        if byte==0u8 { break; }
+        memory_write8(dst+i,byte);
+        i+=1;
+    }
+    memory_write8(dst+i,0u8);
+}
+
+fn vfs_open(path:u64)->i64 {
+    if vfs_state(0)!=1 { return -1; }
+    let mut p:u64=path;
+    if memory_read8(p)==47u8 { p+=1; }
+    let inode:u64=ramfs_lookup(p);
+    if inode!=0 {
+        let free:i64=vfs_free_slot();
+        if free<0 { return free; }
+        let slot:u64=free as u64;
+        vfs_set(1032+slot*8,inode);
+        return (100+slot) as i64;
+    }
+    // RAMFS has no such name: fall back to the optional read-only ZENFS01.
+    // An empty path is the RAMFS root and never a PFS file; any PFS error
+    // (missing disk, corrupt superblock, ENOENT) keeps the old ENOENT result.
+    if memory_read8(p)!=0u8 {
+        let found:i64=pfs_find_ptr(p);
+        if found>=0i64 {
+            let free:i64=vfs_free_slot();
+            if free<0 { return free; }
+            let slot:u64=free as u64;
+            vfs_copy_name(vfs_state_base()+1280+slot*24,p);
+            vfs_set(1032+slot*8,vfs_pfs_tag());
+            return (100+slot) as i64;
+        }
+    }
+    return -2;
+}
+
+fn vfs_inode(fd:u64)->u64 {
+    if fd<100 { return 0; }
+    if fd>=116 { return 0; }
+    let value:u64=vfs_state(1032+(fd-100)*8);
+    if value==vfs_pfs_tag() { return 0; }
+    return value;
+}
+
+fn vfs_read(fd:u64,buf:u64,count:u64)->i64 {
+    if vfs_is_pfs(fd) {
+        let read:i64=pfs_read_ptr(vfs_pfs_name(fd),buf,count);
+        if read<0i64 { return -5i64; } // EIO: the PFS is gone or corrupt
+        return read;
+    }
+    let inode:u64=vfs_inode(fd);
+    if inode==0 { return -9; }
+    if memory_read64(inode)!=1u64 { return -21; }
+    let block:u64=memory_read64(inode+24);
+    if block==0 { return 0; }
+    let size:u64=memory_read64(inode+16);
+    let mut n:u64=count;
+    if n>size { n=size; }
+    let data:u64=vfs_pool()+block*4096;
+    let mut i:u64=0;
+    while i<n {
+        memory_write8(buf+i,memory_read8(data+i));
+        i+=1;
+    }
+    return n as i64;
+}
+
+fn vfs_write(fd:u64,buf:u64,count:u64)->i64 {
+    if vfs_is_pfs(fd) { return -30; } // EROFS: ZENFS01 is read-only through the VFS
+    let inode:u64=vfs_inode(fd);
+    if inode==0 { return -9; }
+    if memory_read64(inode)!=1u64 { return -21; }
+    if count==0u64 { return 0; }
+    let size:u64=memory_read64(inode+16);
+    if count>0u64 && size>=4096u64 { return -28; }
+    let block:i64=ramfs_ensure_block(inode);
+    if block<0 { return -28; }
+    let data:u64=vfs_pool()+(block as u64)*4096;
+    let mut n:u64=count;
+    if size+n>4096 { n=4096-size; }
+    let mut i:u64=0;
+    while i<n {
+        memory_write8(data+size+i,memory_read8(buf+i));
+        i+=1;
+    }
+    memory_store64(inode+16,size+n);
+    return n as i64;
+}
+
+// CPL3 write path: the mode bits decide. There are no per-user credentials, so
+// CPL3 is modelled as the "others" class (0o002) and the fixtures are 0644, so
+// a user task gets EACCES; kernel-side callers keep using vfs_write directly.
+// PFS descriptors reject writes earlier with EROFS regardless of mode.
+fn vfs_write_user(fd:u64,buf:u64,count:u64)->i64 {
+    if vfs_state(0)!=1 { return -1; }
+    if vfs_is_pfs(fd) { return -30; }
+    let inode:u64=vfs_inode(fd);
+    if inode==0 { return -9; }
+    if memory_read64(inode)!=1u64 { return -21; }
+    if (memory_read64(inode+8) & 2u64)==0u64 { return -13; }
+    return vfs_write(fd,buf,count);
+}
+
+// Enumerate the root directory as NUL separated names. The caller validates the
+// user buffer; a buffer that cannot hold the whole listing is rejected with
+// ENOSPC before writing a single byte, so no partial names are exposed.
+// Order is stable: RAMFS directory order (hello.zen, notes.txt) and then PFS
+// inode order (boot.txt, ...). An absent or corrupt PFS contributes no names.
+fn vfs_readdir(buf:u64,count:u64)->i64 {
+    if vfs_state(0)!=1 { return -1; }
+    let dir:u64=ramfs_dir();
+    let mut ramfs_total:u64=0;
+    let mut offset:u64=0;
+    while offset<4096 {
+        let n:u64=ramfs_name_length(dir+offset);
+        if n==0 { break; }
+        ramfs_total+=n+1;
+        offset+=32;
+    }
+    let pfs_total:i64=pfs_readdir_size();
+    if pfs_total<0i64 { return -5i64; }
+    let total:u64=ramfs_total+(pfs_total as u64);
+    if total>count { return -28; }
+    offset=0;
+    let mut used:u64=0;
+    while offset<4096 {
+        let n:u64=ramfs_name_length(dir+offset);
+        if n==0 { break; }
+        let mut i:u64=0;
+        while i<n {
+            memory_write8(buf+used,memory_read8(dir+offset+i));
+            used+=1;
+            i+=1;
+        }
+        memory_write8(buf+used,0u8);
+        used+=1;
+        offset+=32;
+    }
+    if pfs_total>0i64 {
+        let listed:i64=pfs_readdir_names(buf+used,count-used);
+        if listed<0i64 { return listed; }
+        used+=listed as u64;
+    }
+    return used as i64;
+}
+
+fn vfs_close(fd:u64)->i64 {
+    if vfs_is_pfs(fd) {
+        vfs_set(1032+(fd-100)*8,0);
+        memory_write8(vfs_pfs_name(fd),0u8);
+        return 0;
+    }
+    if vfs_inode(fd)==0 { return -9; }
+    vfs_set(1032+(fd-100)*8,0);
+    return 0;
+}
+
+// Release every descriptor; used when a user task exits or faults.
+fn vfs_close_all() {
+    if vfs_state(0)!=1 { return; }
+    let mut slot:u64=0;
+    while slot<16 {
+        vfs_set(1032+slot*8,0);
+        memory_write8(vfs_state_base()+1280+slot*24,0u8);
+        slot+=1;
+    }
+}
+
+fn vfs_state_base()->u64 {
+    let mut base:u64=0;
+    unsafe { base=ferros_vfs_state(); }
+    return base;
+}
+
+// TASK-919: read-only ZENFS01 snapshot. `storage_fs.zen` fills this cache at
+// boot (pfs_export) and main.zen publishes it here. Keeping the PFS accessors
+// in this unit avoids a hard dependency on ATA/heap for host tests that compile
+// vfs.zen alone; no path below ever writes to the disk or to the cache.
+// Cache layout: +0 count, +8 entries (name[24] + size u64), +264 data[8][512].
+fn vfs_pfs_cache()->u64 {
+    return vfs_state(1160);
+}
+
+fn vfs_set_pfs_cache(cache:u64) {
+    vfs_set(1160,cache);
+}
+
+fn vfs_pfs_ptr_length(name:u64)->u64 {
+    let mut length:u64=0;
+    while length<=23u64 {
+        if memory_read8(name+length)==0u8 { return length; }
+        length+=1u64;
+    }
+    return 24u64;
+}
+
+fn vfs_pfs_ptr_name_ok(name:u64)->bool {
+    let length:u64=vfs_pfs_ptr_length(name);
+    if length<1u64 || length>23u64 { return false; }
+    let mut index:u64=0;
+    while index<length {
+        let byte:u8=memory_read8(name+index);
+        if byte<32u8 || byte>126u8 || byte==47u8 { return false; }
+        index+=1u64;
+    }
+    return true;
+}
+
+fn vfs_pfs_name_equals(entry:u64,name:u64)->bool {
+    let length:u64=vfs_pfs_ptr_length(name);
+    if length<1u64 || length>23u64 { return false; }
+    let mut index:u64=0;
+    while index<length {
+        if memory_read8(entry+index)!=memory_read8(name+index) { return false; }
+        index+=1u64;
+    }
+    return memory_read8(entry+length)==0u8;
+}
+
+fn pfs_available()->bool {
+    let cache:u64=vfs_pfs_cache();
+    if cache==0u64 { return false; }
+    return memory_read64(cache)>0u64;
+}
+
+fn pfs_find_ptr(name:u64)->i64 {
+    if !vfs_pfs_ptr_name_ok(name) { return -1i64; }
+    let cache:u64=vfs_pfs_cache();
+    if cache==0u64 { return -5i64; }
+    let mut count:u64=memory_read64(cache);
+    if count>8u64 { count=8u64; }
+    let mut index:u64=0;
+    while index<count {
+        if vfs_pfs_name_equals(cache+8u64+index*32u64,name) { return index as i64; }
+        index+=1u64;
+    }
+    return -5i64;
+}
+
+fn pfs_read_ptr(name:u64,dst:u64,max:u64)->i64 {
+    let found:i64=pfs_find_ptr(name);
+    if found<0i64 { return found; }
+    let cache:u64=vfs_pfs_cache();
+    if cache==0u64 { return -5i64; }
+    let entry:u64=cache+8u64+(found as u64)*32u64;
+    let size:u64=memory_read64(entry+24u64);
+    let mut limit:u64=max;
+    if limit>512u64 { limit=512u64; }
+    if limit>0u64 && dst==0u64 { return -1i64; }
+    let mut count:u64=size;
+    if count>limit { count=limit; }
+    if count==0u64 { return 0i64; }
+    let data:u64=cache+264u64+(found as u64)*512u64;
+    let mut offset:u64=0;
+    while offset<count {
+        memory_write8(dst+offset,memory_read8(data+offset));
+        offset+=1u64;
+    }
+    return count as i64;
+}
+
+fn pfs_readdir_size()->i64 {
+    let cache:u64=vfs_pfs_cache();
+    if cache==0u64 { return 0i64; }
+    let mut count:u64=memory_read64(cache);
+    if count>8u64 { count=8u64; }
+    let mut total:u64=0;
+    let mut index:u64=0;
+    while index<count {
+        let length:u64=vfs_pfs_ptr_length(cache+8u64+index*32u64);
+        if length>0u64 && length<=23u64 { total+=length+1u64; }
+        index+=1u64;
+    }
+    return total as i64;
+}
+
+fn pfs_readdir_names(buf:u64,count:u64)->i64 {
+    let size:i64=pfs_readdir_size();
+    if size<0i64 { return size; }
+    if (size as u64)>count { return -28i64; }
+    let cache:u64=vfs_pfs_cache();
+    if cache==0u64 { return 0i64; }
+    let mut files:u64=memory_read64(cache);
+    if files>8u64 { files=8u64; }
+    let mut used:u64=0;
+    let mut index:u64=0;
+    while index<files {
+        let entry:u64=cache+8u64+index*32u64;
+        let length:u64=vfs_pfs_ptr_length(entry);
+        if length>0u64 && length<=23u64 {
+            let mut offset:u64=0;
+            while offset<length {
+                memory_write8(buf+used,memory_read8(entry+offset));
+                used+=1u64;
+                offset+=1u64;
+            }
+            memory_write8(buf+used,0u8);
+            used+=1u64;
+        }
+        index+=1u64;
+    }
+    return used as i64;
+}
+
+fn vfs_self_path(path:u64,name:str) {
+    let mut i:u64=0;
+    while i<str_len(name) {
+        memory_write8(path+i,str_byte(name,i));
+        i+=1;
+    }
+    memory_write8(path+i,0u8);
+}
+
+fn vfs_self_name_at(buf:u64,offset:u64,name:str)->bool {
+    let mut i:u64=0;
+    while i<str_len(name) {
+        if memory_read8(buf+offset+i)!=str_byte(name,i) { return false; }
+        i+=1;
+    }
+    return true;
+}
+
+fn vfs_self_list_contains(buf:u64,length:u64,name:str)->bool {
+    let target:u64=str_len(name);
+    let mut offset:u64=0;
+    while offset<length {
+        let mut found_entry:bool=true;
+        let mut i:u64=0;
+        while i<target {
+            if offset+i>=length || memory_read8(buf+offset+i)!=str_byte(name,i) {
+                found_entry=false;
+                break;
+            }
+            i+=1;
+        }
+        if found_entry && offset+target<length && memory_read8(buf+offset+target)==0u8 {
+            return true;
+        }
+        while offset<length && memory_read8(buf+offset)!=0u8 { offset+=1; }
+        offset+=1;
+    }
+    return false;
+}
+
+fn vfs_self_test()->bool {
+    if vfs_state(0)!=1 { return false; }
+    if vfs_state(16)!=250u64 { return false; }
+    let root:u64=vfs_state(40);
+    let hello:u64=root+64;
+    let notes:u64=root+128;
+    // Snapshot the pristine fixtures before any mutation; restored at the end.
+    let saved_block:u64=memory_read64(hello+24);
+    let saved_size:u64=memory_read64(hello+16);
+    let notes_block:u64=memory_read64(notes+24);
+    let notes_size:u64=memory_read64(notes+16);
+    if saved_size!=5u64 || saved_block!=4u64 { return false; }
+    if notes_size!=4u64 || notes_block!=5u64 { return false; }
+    if memory_read64(root)!=2u64 || memory_read64(root+24)!=3u64 { return false; }
+    // Scratch lives in the unused tail of the VFS state page, never in the pool.
+    let scratch:u64=vfs_state_base()+2048;
+    let path:u64=scratch;
+    let buf:u64=scratch+512;
+    let src:u64=scratch+1024;
+
+    // hello.zen: open/read/close and post-close errors.
+    vfs_self_path(path,"hello.zen");
+    let fd:i64=vfs_open(path);
+    if fd!=100 { return false; }
+    let n:i64=vfs_read(fd as u64,buf,16);
+    if n!=5 { return false; }
+    if memory_read8(buf)!=72u8 || memory_read8(buf+4)!=111u8 { return false; }
+    if vfs_close(fd as u64)!=0 { return false; }
+    if vfs_read(fd as u64,buf,16)!=-9 { return false; }
+    if vfs_open(path+2)!=-2 { return false; }
+
+    // notes.txt is a second independent inode with its own data block.
+    vfs_self_path(path,"notes.txt");
+    let nfd:i64=vfs_open(path);
+    if nfd!=100 { return false; }
+    let nn:i64=vfs_read(nfd as u64,buf,16);
+    if nn!=4 { return false; }
+    if memory_read8(buf)!=90u8 || memory_read8(buf+1)!=101u8 { return false; }
+    if memory_read8(buf+2)!=110u8 || memory_read8(buf+3)!=10u8 { return false; }
+    if vfs_close(nfd as u64)!=0 { return false; }
+
+    // Unknown names still report ENOENT, with or without an available PFS.
+    vfs_self_path(path,"missing.zen");
+    if vfs_open(path)!=-2 { return false; }
+
+    // TASK-919: the optional ZENFS01 is reachable through the same VFS.
+    let pfs_ok:bool=pfs_available();
+    // readdir returns RAMFS names in directory order followed by PFS names in
+    // inode order, NUL separated. An absent PFS leaves the listing at exactly
+    // the two RAMFS fixtures, preserving the Hito 7 behaviour.
+    let listing:i64=vfs_readdir(buf,256u64);
+    if !vfs_self_name_at(buf,0u64,"hello.zen") { return false; }
+    if memory_read8(buf+9)!=0u8 { return false; }
+    if !vfs_self_name_at(buf,10u64,"notes.txt") { return false; }
+    if memory_read8(buf+19)!=0u8 { return false; }
+    if listing<20 { return false; }
+    if !vfs_self_list_contains(buf,listing as u64,"hello.zen") { return false; }
+    if !vfs_self_list_contains(buf,listing as u64,"notes.txt") { return false; }
+    if pfs_ok {
+        if listing<29 { return false; }
+        if !vfs_self_list_contains(buf,listing as u64,"boot.txt") { return false; }
+    } else {
+        if listing!=20 { return false; }
+        if vfs_self_list_contains(buf,listing as u64,"boot.txt") { return false; }
+    }
+    // A short buffer is rejected without writing a partial listing.
+    if vfs_readdir(buf,7u64)!=-28 { return false; }
+
+    if pfs_ok {
+        // boot.txt is visible through lookup, readable, and strictly read-only.
+        vfs_self_path(path,"boot.txt");
+        let pfd:i64=vfs_open(path);
+        if pfd!=100 { return false; }
+        let pn:i64=vfs_read(pfd as u64,buf,32u64);
+        if pn<7 || pn>26 { return false; }
+        if memory_read8(buf)!=98u8 || memory_read8(buf+1)!=111u8 { return false; }
+        if memory_read8(buf+2)!=111u8 || memory_read8(buf+3)!=116u8 { return false; }
+        if memory_read8(buf+4)!=61u8 { return false; } // '='
+        let mut digit:u64=5u64;
+        while digit+1u64<pn as u64 {
+            let byte:u8=memory_read8(buf+digit);
+            if byte<48u8 || byte>57u8 { return false; }
+            digit+=1u64;
+        }
+        if memory_read8(buf+(pn as u64)-1u64)!=10u8 { return false; } // '\n'
+        if vfs_write(pfd as u64,src,1u64)!=-30 { return false; }
+        if vfs_write_user(pfd as u64,src,1u64)!=-30 { return false; }
+        let pn2:i64=vfs_read(pfd as u64,buf,32u64);
+        if pn2!=pn { return false; } // the rejected writes changed nothing
+        if vfs_close(pfd as u64)!=0 { return false; }
+        if vfs_read(pfd as u64,buf,16)!=-9 { return false; }
+        // RAMFS stays intact and reuses the slot after the PFS descriptor.
+        vfs_self_path(path,"hello.zen");
+        let rfd:i64=vfs_open(path);
+        if rfd!=100 { return false; }
+        let rn:i64=vfs_read(rfd as u64,buf,16);
+        if rn!=5 || memory_read8(buf)!=72u8 || memory_read8(buf+4)!=111u8 { return false; }
+        if vfs_close(rfd as u64)!=0 { return false; }
+    } else {
+        // Without a disk the old ENOENT result is preserved and boot continues.
+        vfs_self_path(path,"boot.txt");
+        if vfs_open(path)!=-2 { return false; }
+    }
+
+    // Directory: empty path resolves to the root, read/write report EISDIR.
+    vfs_self_path(path,"");
+    let dir_fd:i64=vfs_open(path);
+    if dir_fd!=100 { return false; }
+    if vfs_read(dir_fd as u64,buf,16)!=-21 { return false; }
+    if vfs_write(dir_fd as u64,src,1)!=-21 { return false; }
+    if vfs_close(dir_fd as u64)!=0 { return false; }
+    // An explicit absolute root path reaches the same inode.
+    memory_write8(path,47u8); // '/'
+    memory_write8(path+1,0u8);
+    let slash_fd:i64=vfs_open(path);
+    if slash_fd!=100 { return false; }
+    if vfs_close(slash_fd as u64)!=0 { return false; }
+
+    // Permissions: CPL3 may not write the 0644 fixture, kernel context may.
+    vfs_self_path(path,"hello.zen");
+    memory_write8(src,72u8); // H
+    memory_write8(src+1,105u8); // i
+    let fd2:i64=vfs_open(path);
+    if fd2!=100 { return false; }
+    if vfs_write_user(fd2 as u64,src,2)!=-13 { return false; }
+    if vfs_write(fd2 as u64,src,2)!=2 { return false; }
+    let total:i64=vfs_read(fd2 as u64,src,32);
+    if total!=7 { return false; }
+    if memory_read8(src)!=72u8 || memory_read8(src+5)!=72u8 || memory_read8(src+6)!=105u8 { return false; }
+    if vfs_close(fd2 as u64)!=0 { return false; }
+
+    // EMFILE, close_all and descriptor reuse.
+    let mut opened:u64=0;
+    while opened<16 {
+        if vfs_open(path)<100 { return false; }
+        opened+=1;
+    }
+    if vfs_open(path)!=-24 { return false; }
+    vfs_close_all();
+    let fd3:i64=vfs_open(path);
+    if fd3!=100 { return false; }
+    if vfs_close(fd3 as u64)!=0 { return false; }
+
+    // Full block and ENOSPC: one inode with a satisfied block, then no free blocks.
+    memory_store64(hello+16,4096u64);
+    let fd4:i64=vfs_open(path);
+    if fd4!=100 { return false; }
+    if vfs_write(fd4 as u64,src,1)!=-28 { return false; }
+    if vfs_close(fd4 as u64)!=0 { return false; }
+    memory_store64(hello+16,saved_size);
+    memory_store64(hello+24,0u64);
+    let pool:u64=vfs_pool();
+    let mut b:u64=0;
+    while b<256 {
+        memory_write8(pool+b,1u8);
+        b+=1;
+    }
+    let fd5:i64=vfs_open(path);
+    if fd5!=100 { return false; }
+    if vfs_write(fd5 as u64,src,1)!=-28 { return false; }
+    if vfs_state(16)!=250u64 { return false; } // failed allocation never changes the counter
+    if vfs_close(fd5 as u64)!=0 { return false; }
+    // Restore bitmap, free count and both fixtures so the state ends consistent.
+    b=0;
+    while b<256 {
+        if b<6 { memory_write8(pool+b,1u8); } else { memory_write8(pool+b,0u8); }
+        b+=1;
+    }
+    memory_store64(hello+24,saved_block);
+    memory_store64(hello+16,saved_size);
+    // Drop the bytes appended by the write-path test so `cat` stays "Hello".
+    let data:u64=vfs_pool()+saved_block*4096;
+    memory_write8(data+saved_size,0u8);
+    memory_write8(data+saved_size+1,0u8);
+    vfs_set(16,250u64);
+    if memory_read64(hello+16)!=5u64 { return false; }
+    if memory_read64(notes+16)!=notes_size || memory_read64(notes+24)!=notes_block { return false; }
+    if memory_read64(notes+16)!=4u64 || memory_read8(pool+5*4096)!=90u8 { return false; }
+    // The root directory itself must survive the scratch/layout tests intact.
+    let dir:u64=pool+3*4096;
+    if !vfs_self_name_at(dir,0u64,"hello.zen") || memory_read64(dir+24)!=1u64 { return false; }
+    if !vfs_self_name_at(dir,32u64,"notes.txt") || memory_read64(dir+56)!=2u64 { return false; }
+    if memory_read8(dir+64)!=0u8 { return false; }
+    return true;
+}

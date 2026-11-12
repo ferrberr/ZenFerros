@@ -1,0 +1,45 @@
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen build /tmp/task711-user-release/kernel.zen --target x86_64-unknown-none --emit obj -o /tmp/task711-user-release/kernel.o --release
+Built /tmp/task711-user-release/kernel.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/boot/entry.S -o /tmp/task711-user-release/entry.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/io.S -o /tmp/task711-user-release/io.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/interrupts.S -o /tmp/task711-user-release/interrupts.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/context.S -o /tmp/task711-user-release/context.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/userspace.S -o /tmp/task711-user-release/userspace.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /tmp/task711-user-release/user_image.S -o /tmp/task711-user-release/user_image.o
+exit=0
+
+$ ld -m elf_x86_64 -z max-page-size=0x1000 -z noexecstack -nostdlib -static -T /home/ferranfg/proyectos/ZenFerros/ferros/boot/linker.ld /tmp/task711-user-release/entry.o /tmp/task711-user-release/kernel.o /tmp/task711-user-release/io.o /tmp/task711-user-release/interrupts.o /tmp/task711-user-release/context.o /tmp/task711-user-release/userspace.o /tmp/task711-user-release/user_image.o -o /tmp/task711-user-release/ferros-x86_64.elf
+exit=0
+
+$ objcopy -O elf32-i386 /tmp/task711-user-release/ferros-x86_64.elf /tmp/task711-user-release/ferros-multiboot.elf
+exit=0
+
+$ nm -u /tmp/task711-user-release/ferros-x86_64.elf
+exit=0
+
+$ nm -u /tmp/task711-user-release/ferros-multiboot.elf
+exit=0
+
+$ objcopy --dump-section .text=/tmp/task711-user-release/text64.bin /tmp/task711-user-release/ferros-x86_64.elf
+exit=0
+
+$ objcopy --dump-section .text=/tmp/task711-user-release/text32.bin /tmp/task711-user-release/ferros-multiboot.elf
+exit=0
+
+$ objcopy --dump-section .rodata=/tmp/task711-user-release/rodata64.bin /tmp/task711-user-release/ferros-x86_64.elf
+exit=0
+
+$ objcopy --dump-section .rodata=/tmp/task711-user-release/rodata32.bin /tmp/task711-user-release/ferros-multiboot.elf
+exit=0

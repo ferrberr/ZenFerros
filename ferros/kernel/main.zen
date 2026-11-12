@@ -1,0 +1,47 @@
+// Kernel entry and milestone acceptance sequence.
+pub fn kernel_entry(magic:u64,multiboot_info:u64) {
+    if !serial_init() { finish(0x11u32); return; }
+    if magic!=0x2badb002u64 || multiboot_info==0u64 {
+        kernel_panic("invalid Multiboot handoff"); return;
+    }
+    if !serial_write("FERROS KERNEL\nPowered by Zen\n") { finish(0x11u32); return; }
+    interrupts_init();
+    if !pmm_init(multiboot_info) || !pmm_self_test() { kernel_panic("PMM test failed"); return; }
+    serial_write("MEMORY: PMM OK\n");
+    if !vmm_init() || !vmm_self_test() { kernel_panic("VMM test failed"); return; }
+    serial_write("MEMORY: VMM OK\n");
+    heap_init();
+    if !heap_self_test() { kernel_panic("heap test failed"); return; }
+    serial_write("MEMORY: HEAP OK\n");
+    if !vfs_init() { kernel_panic("vfs init failed"); return; }
+    if !breakpoint_self_test() { kernel_panic("breakpoint test failed"); return; }    serial_write("INTERRUPTS: BREAKPOINT OK\n");
+    if !page_fault_self_test() { kernel_panic("page fault test failed"); return; }
+    serial_write("INTERRUPTS: PAGE FAULT OK\n");
+    if !timer_self_test() { kernel_panic("timer test failed"); return; }
+    serial_write("INTERRUPTS: TIMER OK\n");
+    if !scheduler_self_test() { kernel_panic("scheduler test failed"); return; }
+    serial_write("THREADS: CONTEXT OK\nSCHEDULER: PREEMPTION OK\nSCHEDULER: YIELD AND EXIT OK\n");
+    serial_write("SCHEDULER: STATS switches="); serial_uint(scheduler_get(24));
+    serial_write(" preemptions="); serial_uint(scheduler_get(32));
+    serial_write(" yields="); serial_uint(scheduler_get(40));
+    serial_write(" completed="); serial_uint(scheduler_get(48)); serial_write("\n");
+    // TASK-914: optional ATA PIO boot counter, before the ring-3 shell runs.
+    storage_boot();
+    // TASK-916: persistent mini-FS (superblock at LBA 16, boot.txt increment).
+    pfs_boot();
+    // TASK-919: publish a read-only snapshot of ZENFS01 for the VFS. The VFS
+    // unit itself has no ATA/heap dependency, so host tests can compile it.
+    let pfs_cache:u64=heap_alloc(8192u64,16u64);
+    if pfs_cache!=0u64 {
+        if pfs_export(pfs_cache)==0i64 { vfs_set_pfs_cache(pfs_cache); }
+    }
+    if !userspace_self_test() { kernel_panic("userspace test failed"); return; }
+    serial_write("USERSPACE: STATS runs="); serial_uint(user_get(88));
+    serial_write(" writes="); serial_uint(user_get(48));
+    serial_write(" rejected="); serial_uint(user_get(56));
+    serial_write(" irqs="); serial_uint(user_get(64)); serial_write("\n");
+    if !vfs_self_test() { kernel_panic("vfs test failed"); return; }
+    serial_write("FS: RAMFS OK\nFS: VFS OPEN/READ/CLOSE OK\n");
+    if !serial_write("Boot successful\nHITO 7 OK\n") { finish(0x11u32); return; }
+    finish(0x10u32);
+}

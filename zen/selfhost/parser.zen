@@ -1,0 +1,205 @@
+// TASK-902B: parser/evaluador de expresiones enteras escrito en Zen.
+// Perfil freestanding (x86_64-unknown-none): sin libc, sin structs, sin arrays.
+//
+// Contrato:
+//   pub fn zen_eval(text:u64, length:u64, out:u64) -> u64
+//   out[0] = estado (0 ok, 1 error sintactico, 2 division/resto por cero,
+//                    3 profundidad de anidamiento > 64)
+//   out[1] = valor u64 (0 cuando hay error)
+//
+// Diseno: descenso recursivo sobre la pila del proceso. Como el subconjunto no
+// tiene arrays ni structs, cada nivel devuelve en el u64 de retorno la posicion
+// y el estado empaquetados:
+//   bits 63..56 -> estado, bits 55..0 -> posicion del siguiente caracter.
+// En caso de exito el valor empaquetado es directamente la posicion (estado 0).
+// El valor parcial se escribe en *out (celda compartida): la evaluacion es
+// depth-first de izquierda a derecha y cada subexpresion consume su valor antes
+// de que la siguiente llamada reutilice la celda.
+
+// Empaqueta estado y posicion. Estado siempre < 4, posicion < 2^56.
+fn zen_pack(state:u64, pos:u64) -> u64 {
+    return (state << 56u64) | pos;
+}
+
+fn zen_state(packed:u64) -> u64 {
+    return packed >> 56u64;
+}
+
+fn zen_is_space(byte:u64) -> bool {
+    return byte == 32u64 || byte == 9u64 || byte == 10u64 || byte == 13u64;
+}
+
+fn zen_is_digit(byte:u64) -> bool {
+    return byte >= 48u64 && byte <= 57u64;
+}
+
+// Byte en text[pos], o 0 si pos cae fuera del buffer.
+fn zen_peek(text:u64, length:u64, pos:u64) -> u64 {
+    if pos >= length {
+        return 0u64;
+    }
+    unsafe {
+        let address: *u8 = (text + pos) as *u8;
+        return volatile_load(address) as u64;
+    }
+}
+
+fn zen_skip_space(text:u64, length:u64, pos:u64) -> u64 {
+    let mut cursor: u64 = pos;
+    while cursor < length && zen_is_space(zen_peek(text, length, cursor)) {
+        cursor += 1;
+    }
+    return cursor;
+}
+
+fn zen_load(cell:u64) -> u64 {
+    unsafe {
+        let address: *u64 = cell as *u64;
+        return volatile_load(address);
+    }
+}
+
+fn zen_store(cell:u64, value:u64) {
+    unsafe {
+        let address: *mut u64 = cell as *mut u64;
+        volatile_store(address, value);
+    }
+}
+
+// expr := term (('+'|'-') term)*
+fn zen_parse_expr(text:u64, length:u64, pos:u64, depth:u64, out:u64) -> u64 {
+    let mut cursor: u64 = zen_skip_space(text, length, pos);
+    let mut packed: u64 = zen_parse_term(text, length, cursor, depth, out);
+    if zen_state(packed) != 0u64 {
+        return packed;
+    }
+    cursor = packed;
+    let mut acc: u64 = zen_load(out);
+    while true {
+        cursor = zen_skip_space(text, length, cursor);
+        let op: u64 = zen_peek(text, length, cursor);
+        if op != 43u64 && op != 45u64 {
+            break;
+        }
+        cursor += 1;
+        packed = zen_parse_term(text, length, cursor, depth, out);
+        if zen_state(packed) != 0u64 {
+            return packed;
+        }
+        cursor = packed;
+        let rhs: u64 = zen_load(out);
+        if op == 43u64 {
+            acc = acc + rhs;
+        } else {
+            acc = acc - rhs;
+        }
+    }
+    zen_store(out, acc);
+    return cursor;
+}
+
+// term := factor (('*'|'/'|'%') factor)*
+fn zen_parse_term(text:u64, length:u64, pos:u64, depth:u64, out:u64) -> u64 {
+    let mut cursor: u64 = zen_skip_space(text, length, pos);
+    let mut packed: u64 = zen_parse_factor(text, length, cursor, depth, out);
+    if zen_state(packed) != 0u64 {
+        return packed;
+    }
+    cursor = packed;
+    let mut acc: u64 = zen_load(out);
+    while true {
+        cursor = zen_skip_space(text, length, cursor);
+        let op: u64 = zen_peek(text, length, cursor);
+        if op != 42u64 && op != 47u64 && op != 37u64 {
+            break;
+        }
+        cursor += 1;
+        packed = zen_parse_factor(text, length, cursor, depth, out);
+        if zen_state(packed) != 0u64 {
+            return packed;
+        }
+        cursor = packed;
+        let rhs: u64 = zen_load(out);
+        if op == 42u64 {
+            acc = acc * rhs;
+        } else if op == 47u64 {
+            if rhs == 0u64 {
+                return zen_pack(2u64, cursor);
+            }
+            acc = acc / rhs;
+        } else {
+            if rhs == 0u64 {
+                return zen_pack(2u64, cursor);
+            }
+            acc = acc % rhs;
+        }
+    }
+    zen_store(out, acc);
+    return cursor;
+}
+
+// factor := number | '(' expr ')' | '-' factor
+fn zen_parse_factor(text:u64, length:u64, pos:u64, depth:u64, out:u64) -> u64 {
+    let mut cursor: u64 = zen_skip_space(text, length, pos);
+    if depth > 64u64 {
+        return zen_pack(3u64, cursor);
+    }
+    let first: u64 = zen_peek(text, length, cursor);
+    if zen_is_digit(first) {
+        let mut value: u64 = 0u64;
+        while cursor < length && zen_is_digit(zen_peek(text, length, cursor)) {
+            let digit: u64 = zen_peek(text, length, cursor) - 48u64;
+            value = value * 10u64 + digit;
+            cursor += 1;
+        }
+        zen_store(out, value);
+        return cursor;
+    }
+    if first == 40u64 {
+        let packed: u64 = zen_parse_expr(text, length, cursor + 1u64, depth + 1u64, out);
+        if zen_state(packed) != 0u64 {
+            return packed;
+        }
+        cursor = zen_skip_space(text, length, packed);
+        if zen_peek(text, length, cursor) != 41u64 {
+            return zen_pack(1u64, cursor);
+        }
+        return cursor + 1u64;
+    }
+    if first == 45u64 {
+        let packed: u64 = zen_parse_factor(text, length, cursor + 1u64, depth + 1u64, out);
+        if zen_state(packed) != 0u64 {
+            return packed;
+        }
+        let value: u64 = zen_load(out);
+        zen_store(out, 0u64 - value);
+        return packed;
+    }
+    return zen_pack(1u64, cursor);
+}
+
+pub fn zen_eval(text:u64, length:u64, out:u64) -> u64 {
+    unsafe {
+        let status_cell: *mut u64 = out as *mut u64;
+        let value_cell: *mut u64 = (out + 8u64) as *mut u64;
+        // La celda de valor hace tambien de scratch del parser; asi el estado
+        // final puede escribirse en out[0] sin destruir el resultado.
+        let scratch: u64 = out + 8u64;
+        volatile_store(status_cell, 0u64);
+        volatile_store(value_cell, 0u64);
+        let packed: u64 = zen_parse_expr(text, length, 0u64, 0u64, scratch);
+        let state: u64 = zen_state(packed);
+        if state != 0u64 {
+            volatile_store(status_cell, state);
+            volatile_store(value_cell, 0u64);
+            return state;
+        }
+        let cursor: u64 = zen_skip_space(text, length, packed);
+        if cursor != length {
+            volatile_store(status_cell, 1u64);
+            volatile_store(value_cell, 0u64);
+            return 1u64;
+        }
+        return 0u64;
+    }
+}

@@ -1,0 +1,605 @@
+{
+  "timestamp_utc": "2026-11-11T20:06:18+00:00",
+  "host": {
+    "platform": "Linux-7.2.11-arch1-1-x86_64-with-glibc2.44",
+    "machine": "x86_64",
+    "cpu": "AMD Ryzen 7 260 w/ Radeon 780M Graphics",
+    "python": "3.14.8",
+    "loadavg": [
+      2.07421875,
+      2.19580078125,
+      2.046875
+    ],
+    "cpu_count": 16
+  },
+  "toolchains": {
+    "c": {
+      "tool": "cc",
+      "path": "/usr/bin/cc",
+      "available": true,
+      "version": "cc (GCC) 16.2.1 20260810"
+    },
+    "cpp": {
+      "tool": "g++",
+      "path": "/usr/bin/g++",
+      "available": true,
+      "version": "g++ (GCC) 16.2.1 20260810"
+    },
+    "rust": {
+      "tool": "rustc",
+      "path": "/home/ferranfg/.cargo/bin/rustc",
+      "available": true,
+      "version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)"
+    },
+    "clang": {
+      "tool": "clang",
+      "path": null,
+      "available": false
+    },
+    "zig": {
+      "tool": "zig",
+      "path": null,
+      "available": false
+    },
+    "zen": {
+      "path": "/home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen",
+      "available": true,
+      "version": "zen 0.1.0 (bootstrap)\nHost: x86_64-linux\nBackend: C11 via host cc (override with CC)\nTargets: host, x86_64-unknown-none (ELF object; GCC-compatible x86_64 CC)\nCompiler build: release",
+      "cc_env": "cc"
+    }
+  },
+  "config": {
+    "warmup": 2,
+    "reps": 7,
+    "cpu_affinity": 0,
+    "timing": "primary: child CPU time (getrusage RUSAGE_CHILDREN, interleaved); secondary: wall clock per process run, includes startup",
+    "cpu_affinity_effective": true
+  },
+  "benchmarks": {
+    "arith": {
+      "desc": "50M wrapping 64-bit LCG multiply-add with 32-bit fold",
+      "checksum": "385904853",
+      "results": {
+        "zen": {
+          "built": true,
+          "binary_bytes": 16160,
+          "build_seconds": 0.042,
+          "cpu_samples_ns": [
+            43476000,
+            44043000,
+            41845001,
+            42421000,
+            42328000,
+            42935000,
+            43339000
+          ],
+          "cpu_median_ns": 42935000,
+          "cpu_min_ns": 41845001,
+          "cpu_mean_ns": 42912428,
+          "cpu_stdev_ns": 763843,
+          "wall_samples_ns": [
+            66597104,
+            66808830,
+            66842824,
+            66303244,
+            66520711,
+            66416465,
+            66991153
+          ],
+          "wall_median_ns": 66597104,
+          "wall_min_ns": 66303244,
+          "wall_mean_ns": 66640047,
+          "wall_stdev_ns": 249129,
+          "ratio_to_c_cpu": 1.0094
+        },
+        "c": {
+          "built": true,
+          "binary_bytes": 15968,
+          "build_seconds": 0.0387,
+          "cpu_samples_ns": [
+            43282000,
+            45423999,
+            42536000,
+            41959000,
+            43511999,
+            41421999,
+            41677999
+          ],
+          "cpu_median_ns": 42536000,
+          "cpu_min_ns": 41421999,
+          "cpu_mean_ns": 42830428,
+          "cpu_stdev_ns": 1387618,
+          "wall_samples_ns": [
+            66591494,
+            66409444,
+            66553533,
+            66555025,
+            66388895,
+            65386839,
+            67030976
+          ],
+          "wall_median_ns": 66553533,
+          "wall_min_ns": 65386839,
+          "wall_mean_ns": 66416600,
+          "wall_stdev_ns": 501195,
+          "ratio_to_c_cpu": 1.0
+        },
+        "cpp": {
+          "built": true,
+          "binary_bytes": 15968,
+          "build_seconds": 0.0639,
+          "cpu_samples_ns": [
+            43559000,
+            45666001,
+            42849999,
+            42841000,
+            44499001,
+            45070001,
+            44002001
+          ],
+          "cpu_median_ns": 44002001,
+          "cpu_min_ns": 42841000,
+          "cpu_mean_ns": 44069571,
+          "cpu_stdev_ns": 1079803,
+          "wall_samples_ns": [
+            66512667,
+            66655504,
+            66647310,
+            66645614,
+            66876467,
+            66938936,
+            66851702
+          ],
+          "wall_median_ns": 66655504,
+          "wall_min_ns": 66512667,
+          "wall_mean_ns": 66732600,
+          "wall_stdev_ns": 156318,
+          "ratio_to_c_cpu": 1.0345
+        },
+        "rust": {
+          "built": true,
+          "binary_bytes": 4537080,
+          "build_seconds": 0.0723,
+          "cpu_samples_ns": [
+            42680000,
+            46525000,
+            42205000,
+            42478000,
+            42312000,
+            43395000,
+            42372000
+          ],
+          "cpu_median_ns": 42478000,
+          "cpu_min_ns": 42205000,
+          "cpu_mean_ns": 43138142,
+          "cpu_stdev_ns": 1545029,
+          "wall_samples_ns": [
+            66629375,
+            66809222,
+            67000070,
+            66336326,
+            66399476,
+            66599629,
+            67258604
+          ],
+          "wall_median_ns": 66629375,
+          "wall_min_ns": 66336326,
+          "wall_mean_ns": 66718957,
+          "wall_stdev_ns": 328919,
+          "ratio_to_c_cpu": 0.9986
+        }
+      }
+    },
+    "collatz": {
+      "desc": "Collatz step count over 1..=500k (branch-heavy, no recursion)",
+      "checksum": "62134795",
+      "results": {
+        "zen": {
+          "built": true,
+          "binary_bytes": 16160,
+          "build_seconds": 0.0435,
+          "cpu_samples_ns": [
+            38184000,
+            36785000,
+            37444000,
+            38911000,
+            38720001,
+            37701000,
+            37710000
+          ],
+          "cpu_median_ns": 37710000,
+          "cpu_min_ns": 36785000,
+          "cpu_mean_ns": 37922143,
+          "cpu_stdev_ns": 741463,
+          "wall_samples_ns": [
+            66464246,
+            66645275,
+            66448154,
+            67131675,
+            66914421,
+            66605881,
+            66857964
+          ],
+          "wall_median_ns": 66645275,
+          "wall_min_ns": 66448154,
+          "wall_mean_ns": 66723945,
+          "wall_stdev_ns": 253021,
+          "ratio_to_c_cpu": 1.0268
+        },
+        "c": {
+          "built": true,
+          "binary_bytes": 15968,
+          "build_seconds": 0.0373,
+          "cpu_samples_ns": [
+            35785000,
+            37239000,
+            38343000,
+            36766000,
+            36726001,
+            35798000,
+            35770999
+          ],
+          "cpu_median_ns": 36726001,
+          "cpu_min_ns": 35770999,
+          "cpu_mean_ns": 36632571,
+          "cpu_stdev_ns": 955427,
+          "wall_samples_ns": [
+            66686992,
+            66372154,
+            66619666,
+            66970325,
+            66471229,
+            66508188,
+            66747286
+          ],
+          "wall_median_ns": 66619666,
+          "wall_min_ns": 66372154,
+          "wall_mean_ns": 66625120,
+          "wall_stdev_ns": 199706,
+          "ratio_to_c_cpu": 1.0
+        },
+        "cpp": {
+          "built": true,
+          "binary_bytes": 15976,
+          "build_seconds": 0.064,
+          "cpu_samples_ns": [
+            37787000,
+            38118000,
+            39058000,
+            37444000,
+            37849999,
+            37155000,
+            37324001
+          ],
+          "cpu_median_ns": 37787000,
+          "cpu_min_ns": 37155000,
+          "cpu_mean_ns": 37819428,
+          "cpu_stdev_ns": 639407,
+          "wall_samples_ns": [
+            66856111,
+            67062576,
+            66628674,
+            66904920,
+            66904540,
+            66337437,
+            67044543
+          ],
+          "wall_median_ns": 66904540,
+          "wall_min_ns": 66337437,
+          "wall_mean_ns": 66819828,
+          "wall_stdev_ns": 256384,
+          "ratio_to_c_cpu": 1.0289
+        },
+        "rust": {
+          "built": true,
+          "binary_bytes": 4537056,
+          "build_seconds": 0.0742,
+          "cpu_samples_ns": [
+            41638000,
+            41376000,
+            41169000,
+            41259999,
+            40851000,
+            40931000,
+            40198000
+          ],
+          "cpu_median_ns": 41169000,
+          "cpu_min_ns": 40198000,
+          "cpu_mean_ns": 41060428,
+          "cpu_stdev_ns": 463534,
+          "wall_samples_ns": [
+            66698103,
+            67413303,
+            65925749,
+            66902498,
+            66925348,
+            66628776,
+            66869725
+          ],
+          "wall_median_ns": 66869725,
+          "wall_min_ns": 65925749,
+          "wall_mean_ns": 66766214,
+          "wall_stdev_ns": 447817,
+          "ratio_to_c_cpu": 1.121
+        }
+      }
+    },
+    "mem": {
+      "desc": "16 MiB volatile sequential byte write + read (malloc)",
+      "checksum": "2139062878",
+      "results": {
+        "zen": {
+          "built": true,
+          "binary_bytes": 16256,
+          "build_seconds": 0.0444,
+          "cpu_samples_ns": [
+            20368999,
+            20754000,
+            21890000,
+            20292000,
+            20934000,
+            20386000,
+            20233000
+          ],
+          "cpu_median_ns": 20386000,
+          "cpu_min_ns": 20233000,
+          "cpu_mean_ns": 20693999,
+          "cpu_stdev_ns": 586831,
+          "wall_samples_ns": [
+            34541960,
+            35083343,
+            34864725,
+            34610709,
+            34211943,
+            34510782,
+            34596832
+          ],
+          "wall_median_ns": 34596832,
+          "wall_min_ns": 34211943,
+          "wall_mean_ns": 34631470,
+          "wall_stdev_ns": 276528,
+          "ratio_to_c_cpu": 0.9385
+        },
+        "c": {
+          "built": true,
+          "binary_bytes": 16064,
+          "build_seconds": 0.0385,
+          "cpu_samples_ns": [
+            22523000,
+            21722001,
+            22280000,
+            19999000,
+            23168000,
+            20396000,
+            20173999
+          ],
+          "cpu_median_ns": 21722001,
+          "cpu_min_ns": 19999000,
+          "cpu_mean_ns": 21466000,
+          "cpu_stdev_ns": 1272035,
+          "wall_samples_ns": [
+            34014292,
+            34117316,
+            34474394,
+            33989056,
+            34210900,
+            34386118,
+            34957619
+          ],
+          "wall_median_ns": 34210900,
+          "wall_min_ns": 33989056,
+          "wall_mean_ns": 34307099,
+          "wall_stdev_ns": 339010,
+          "ratio_to_c_cpu": 1.0
+        },
+        "cpp": {
+          "built": true,
+          "binary_bytes": 16072,
+          "build_seconds": 0.0703,
+          "cpu_samples_ns": [
+            22540000,
+            23533000,
+            21499000,
+            23252000,
+            21582999,
+            20965000,
+            21161001
+          ],
+          "cpu_median_ns": 21582999,
+          "cpu_min_ns": 20965000,
+          "cpu_mean_ns": 22076142,
+          "cpu_stdev_ns": 1030262,
+          "wall_samples_ns": [
+            34815463,
+            34286502,
+            34273898,
+            34097298,
+            34538724,
+            33812735,
+            34779824
+          ],
+          "wall_median_ns": 34286502,
+          "wall_min_ns": 33812735,
+          "wall_mean_ns": 34372063,
+          "wall_stdev_ns": 364222,
+          "ratio_to_c_cpu": 0.9936
+        },
+        "rust": {
+          "built": true,
+          "binary_bytes": 4538008,
+          "build_seconds": 0.0767,
+          "cpu_samples_ns": [
+            19748000,
+            20009000,
+            19369000,
+            19118000,
+            18941001,
+            18748000,
+            18702000
+          ],
+          "cpu_median_ns": 19118000,
+          "cpu_min_ns": 18702000,
+          "cpu_mean_ns": 19233571,
+          "cpu_stdev_ns": 500261,
+          "wall_samples_ns": [
+            34672945,
+            34612534,
+            34814120,
+            34706578,
+            34407729,
+            34188839,
+            34472821
+          ],
+          "wall_median_ns": 34612534,
+          "wall_min_ns": 34188839,
+          "wall_mean_ns": 34553652,
+          "wall_stdev_ns": 212070,
+          "ratio_to_c_cpu": 0.8801
+        }
+      }
+    },
+    "sort": {
+      "desc": "in-place heapsort of 500k u32 with volatile access",
+      "checksum": "14559707269027860169",
+      "results": {
+        "zen": {
+          "built": true,
+          "binary_bytes": 16288,
+          "build_seconds": 0.057,
+          "cpu_samples_ns": [
+            27993000,
+            26862000,
+            26395000,
+            26462000,
+            26683000,
+            26693000,
+            28623001
+          ],
+          "cpu_median_ns": 26693000,
+          "cpu_min_ns": 26395000,
+          "cpu_mean_ns": 27101571,
+          "cpu_stdev_ns": 858022,
+          "wall_samples_ns": [
+            34427195,
+            34455438,
+            33860585,
+            34063223,
+            34030172,
+            34582336,
+            34691761
+          ],
+          "wall_median_ns": 34427195,
+          "wall_min_ns": 33860585,
+          "wall_mean_ns": 34301530,
+          "wall_stdev_ns": 315031,
+          "ratio_to_c_cpu": 1.0273
+        },
+        "c": {
+          "built": true,
+          "binary_bytes": 16096,
+          "build_seconds": 0.0474,
+          "cpu_samples_ns": [
+            26987001,
+            29214000,
+            25798000,
+            26990999,
+            25835999,
+            25700000,
+            25983999
+          ],
+          "cpu_median_ns": 25983999,
+          "cpu_min_ns": 25700000,
+          "cpu_mean_ns": 26644285,
+          "cpu_stdev_ns": 1260838,
+          "wall_samples_ns": [
+            34062763,
+            34419872,
+            34772702,
+            35352618,
+            33899487,
+            34007099,
+            34157220
+          ],
+          "wall_median_ns": 34157220,
+          "wall_min_ns": 33899487,
+          "wall_mean_ns": 34381680,
+          "wall_stdev_ns": 519934,
+          "ratio_to_c_cpu": 1.0
+        },
+        "cpp": {
+          "built": true,
+          "binary_bytes": 16112,
+          "build_seconds": 0.103,
+          "cpu_samples_ns": [
+            27448000,
+            26810000,
+            26710000,
+            28928001,
+            29133001,
+            27091999,
+            28004000
+          ],
+          "cpu_median_ns": 27448000,
+          "cpu_min_ns": 26710000,
+          "cpu_mean_ns": 27732143,
+          "cpu_stdev_ns": 987592,
+          "wall_samples_ns": [
+            34063484,
+            34072341,
+            34389895,
+            34521052,
+            34309575,
+            34408009,
+            34078593
+          ],
+          "wall_median_ns": 34309575,
+          "wall_min_ns": 34063484,
+          "wall_mean_ns": 34263278,
+          "wall_stdev_ns": 189759,
+          "ratio_to_c_cpu": 1.0563
+        },
+        "rust": {
+          "built": true,
+          "binary_bytes": 4538264,
+          "build_seconds": 0.0816,
+          "cpu_samples_ns": [
+            36321000,
+            37486000,
+            36111000,
+            37038000,
+            37832000,
+            35880001,
+            38455000
+          ],
+          "cpu_median_ns": 37038000,
+          "cpu_min_ns": 35880001,
+          "cpu_mean_ns": 37017571,
+          "cpu_stdev_ns": 961811,
+          "wall_samples_ns": [
+            66626922,
+            66983559,
+            66149677,
+            66889182,
+            66753548,
+            67132286,
+            66682705
+          ],
+          "wall_median_ns": 66753548,
+          "wall_min_ns": 66149677,
+          "wall_mean_ns": 66745411,
+          "wall_stdev_ns": 316226,
+          "ratio_to_c_cpu": 1.4254
+        }
+      }
+    }
+  },
+  "notes": [
+    "Compilation time and binary size are reported separately from runtime.",
+    "Checksums are compared across languages before timing; a mismatch aborts.",
+    "No claim of superiority is made from these numbers alone."
+  ],
+  "artifacts": {
+    "json": "benchmarks/results/bench-run3.json",
+    "markdown": "benchmarks/results/bench-run3.md"
+  }
+}

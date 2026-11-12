@@ -1,0 +1,49 @@
+// Arrays de tamaño fijo en Zen MVP
+// Prueba: [T; N], literal, repetición, lectura/escritura, +=, *=, bucles y bool.
+
+fn main() -> i32 {
+    let mut values: [u64; 5] = [1, 2, 3, 4, 5];
+    let mut total: u64 = 0;
+    let mut i: u64 = 0;
+    while i < 5 {
+        total += values[i];
+        values[i] *= 2;
+        i += 1;
+    }
+    print("sum=");
+    print_uint(total);
+    print("\ndoubled=");
+    i = 0;
+    while i < 5 {
+        if i > 0 {
+            print(" ");
+        }
+        print_uint(values[i]);
+        i += 1;
+    }
+    print("\n");
+
+    let mut flags: [bool; 3] = [false; 3];
+    flags[1] = true;
+    let mut set: u8 = 0;
+    i = 0;
+    while i < 3 {
+        if flags[i] {
+            set += 1;
+        }
+        i += 1;
+    }
+    print("flags=");
+    print_uint(set as u64);
+    print("\n");
+
+    let mut bytes: [u8; 4] = [0; 4];
+    bytes[0] = 90;
+    bytes[3] = 42;
+    print("bytes=");
+    print_uint(bytes[0] as u64);
+    print(",");
+    print_uint(bytes[3] as u64);
+    print("\n");
+    return 0;
+}

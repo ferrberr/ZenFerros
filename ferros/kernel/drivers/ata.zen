@@ -1,0 +1,139 @@
+// ATA PIO driver for the primary channel (I/O ports 0x1F0..0x1F7/0x3F6).
+// One master drive, LBA28, one sector per call, polling only (no IRQ, no DMA).
+//
+// Status bits: BSY=0x80, DRDY=0x40, DF=0x20, DRQ=0x08, ERR=0x01.
+// Return values: 0 on success; -1 invalid argument, -2 no device on the
+// channel, -3 device error/DF, -4 polling timeout.  The sector payload is
+// always 512 bytes.  The data register is 16 bits wide, so the byte helpers
+// from io.S cannot be used for it; build_ferros.py links a tiny inw/outw shim.
+extern "C" {
+    fn ferros_ata_in16(port:u16)->u16;
+    fn ferros_ata_out16(port:u16,value:u16);
+}
+
+fn ata_in8(port:u16)->u8 {
+    unsafe { return ferros_in8(port); }
+}
+
+fn ata_out8(port:u16,value:u8) {
+    unsafe { ferros_out8(port,value); }
+}
+
+fn ata_in16(port:u16)->u16 {
+    unsafe { return ferros_ata_in16(port); }
+}
+
+fn ata_out16(port:u16,value:u16) {
+    unsafe { ferros_ata_out16(port,value); }
+}
+
+// Four alternate-status reads give the drive the required 400 ns settle time
+// after a device/head write without a separate timing facility.
+fn ata_delay() {
+    let mut index:u64=0;
+    while index<4u64 {
+        ata_in8(0x3f6u16);
+        index+=1u64;
+    }
+}
+
+fn ata_status()->u8 {
+    return ata_in8(0x1f7u16);
+}
+
+// Wait until the drive clears BSY.  The timeout is a bounded poll loop, not a
+// busy wait on a timer, because the kernel may call this before interrupts
+// are serviced from the shell path.
+fn ata_wait_not_busy()->i64 {
+    let mut polls:u64=0;
+    while polls<2000000u64 {
+        let status:u8=ata_status();
+        if status==0x00u8 || status==0xffu8 { return -2i64; }
+        if (status & 0x80u8)==0u8 {
+            if (status & 0x21u8)!=0u8 { return -3i64; }
+            return 0i64;
+        }
+        polls+=1u64;
+    }
+    return -4i64;
+}
+
+// Wait until BSY is clear and DRQ is set, ready for a 256-word PIO burst.
+fn ata_wait_drq()->i64 {
+    let mut polls:u64=0;
+    while polls<2000000u64 {
+        let status:u8=ata_status();
+        if status==0x00u8 || status==0xffu8 { return -2i64; }
+        if (status & 0x80u8)==0u8 {
+            if (status & 0x21u8)!=0u8 { return -3i64; }
+            if (status & 0x08u8)!=0u8 { return 0i64; }
+        }
+        polls+=1u64;
+    }
+    return -4i64;
+}
+
+// Select the master drive and expose the high nibble of the LBA.  A floating
+// bus (0xFF) or an empty channel (0x00) is reported as "no device" before any
+// command is issued, which keeps storage_boot on its non-panic path.
+fn ata_select(lba:u64)->i64 {
+    if lba>0x0fffffffu64 { return -1i64; }
+    ata_out8(0x1f6u16,0xe0u8 | ((lba>>24u64) as u8 & 0x0fu8));
+    ata_delay();
+    let status:u8=ata_status();
+    if status==0x00u8 || status==0xffu8 { return -2i64; }
+    return ata_wait_not_busy();
+}
+
+fn ata_set_lba(lba:u64) {
+    ata_out8(0x1f2u16,1u8); // One sector.
+    ata_out8(0x1f3u16,(lba & 0xffu64) as u8);
+    ata_out8(0x1f4u16,((lba>>8u64) & 0xffu64) as u8);
+    ata_out8(0x1f5u16,((lba>>16u64) & 0xffu64) as u8);
+}
+
+// Read one 512-byte sector into the supervisor buffer at dst.
+fn ata_read_sector(lba:u64,dst:u64)->i64 {
+    if dst==0u64 { return -1i64; }
+    let selected:i64=ata_select(lba);
+    if selected<0i64 { return selected; }
+    ata_set_lba(lba);
+    ata_out8(0x1f7u16,0x20u8); // READ SECTORS (PIO).
+    let ready:i64=ata_wait_drq();
+    if ready<0i64 { return ready; }
+    let mut index:u64=0;
+    while index<256u64 {
+        let word:u16=ata_in16(0x1f0u16);
+        memory_write8(dst+index*2u64,(word & 0xffu16) as u8);
+        memory_write8(dst+index*2u64+1u64,(word>>8u16) as u8);
+        index+=1u64;
+    }
+    return ata_wait_not_busy();
+}
+
+// Write one 512-byte sector from the supervisor buffer at src.
+fn ata_write_sector(lba:u64,src:u64)->i64 {
+    if src==0u64 { return -1i64; }
+    let selected:i64=ata_select(lba);
+    if selected<0i64 { return selected; }
+    ata_set_lba(lba);
+    ata_out8(0x1f7u16,0x30u8); // WRITE SECTORS (PIO).
+    let ready:i64=ata_wait_drq();
+    if ready<0i64 { return ready; }
+    let mut index:u64=0;
+    while index<256u64 {
+        let low:u16=memory_read8(src+index*2u64) as u16;
+        let high:u16=(memory_read8(src+index*2u64+1u64) as u16)<<8u16;
+        ata_out16(0x1f0u16,low | high);
+        index+=1u64;
+    }
+    return ata_wait_not_busy();
+}
+
+// Flush the drive's write cache so the raw image changes survive QEMU exit.
+fn ata_flush()->i64 {
+    let selected:i64=ata_select(0u64);
+    if selected<0i64 { return selected; }
+    ata_out8(0x1f7u16,0xe7u8); // FLUSH CACHE.
+    return ata_wait_not_busy();
+}

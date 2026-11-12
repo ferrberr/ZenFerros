@@ -1,0 +1,24 @@
+[
+  {
+    "optimized": false,
+    "compile_seconds": 0.062379,
+    "link_seconds": 0.004228,
+    "object_bytes": 16744,
+    "executable_bytes": 10264,
+    "stdout": "Zen freestanding OK\n",
+    "exit_code": 0,
+    "unresolved_final_symbols": 0,
+    "dynamic_dependencies": 0
+  },
+  {
+    "optimized": true,
+    "compile_seconds": 0.036185,
+    "link_seconds": 0.003865,
+    "object_bytes": 1344,
+    "executable_bytes": 4832,
+    "stdout": "Zen freestanding OK\n",
+    "exit_code": 0,
+    "unresolved_final_symbols": 0,
+    "dynamic_dependencies": 0
+  }
+]

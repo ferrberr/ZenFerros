@@ -1,0 +1,742 @@
+[
+  {
+    "profile": "debug",
+    "kind": "success",
+    "build": {
+      "source_units": [
+        "arch/x86_64/abi.zen",
+        "drivers/serial.zen",
+        "memory.zen",
+        "interrupts.zen",
+        "scheduler.zen",
+        "runtime.zen",
+        "main.zen"
+      ],
+      "source_paths": [
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/abi.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/drivers/serial.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/memory.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/interrupts.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/scheduler.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/runtime.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/main.zen"
+      ],
+      "release": false,
+      "payload": {
+        "elf_class": 2,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 76000,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 57344,
+            "memory_bytes": 57344,
+            "flags": 5
+          },
+          {
+            "address": 1105920,
+            "file_offset": 61440,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1110016,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "image": {
+        "elf_class": 1,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 73740,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 57344,
+            "memory_bytes": 57344,
+            "flags": 5
+          },
+          {
+            "address": 1105920,
+            "file_offset": 61440,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1110016,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "build_seconds": 0.163505,
+      "image_path": "/tmp/zenferros-task611-review/debug/ferros-multiboot.elf",
+      "undefined_symbols": 0
+    },
+    "result": {
+      "command": [
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/bin/qemu-system-x86_64",
+        "-L",
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/share/qemu",
+        "-machine",
+        "pc,accel=tcg",
+        "-cpu",
+        "qemu64",
+        "-m",
+        "64M",
+        "-smp",
+        "1",
+        "-nodefaults",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-nic",
+        "none",
+        "-no-reboot",
+        "-device",
+        "isa-debug-exit,iobase=0xf4,iosize=0x04",
+        "-kernel",
+        "/tmp/zenferros-task611-review/debug/ferros-multiboot.elf"
+      ],
+      "status": 33,
+      "timed_out": false,
+      "cancelled": false,
+      "seconds": 0.376644,
+      "passed": true,
+      "scheduler": {
+        "switches": 45,
+        "preemptions": 25,
+        "yields": 16,
+        "completed": 3
+      }
+    }
+  },
+  {
+    "profile": "debug",
+    "kind": "scheduler_guard",
+    "build": {
+      "source_units": [
+        "arch/x86_64/abi.zen",
+        "drivers/serial.zen",
+        "memory.zen",
+        "interrupts.zen",
+        "scheduler.zen",
+        "runtime.zen",
+        "main.zen"
+      ],
+      "source_paths": [
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/abi.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/drivers/serial.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/memory.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/interrupts.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/scheduler.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/runtime.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/tests/scheduler_guard.zen"
+      ],
+      "release": false,
+      "payload": {
+        "elf_class": 2,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 76000,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 57344,
+            "memory_bytes": 57344,
+            "flags": 5
+          },
+          {
+            "address": 1105920,
+            "file_offset": 61440,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1110016,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "image": {
+        "elf_class": 1,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 73740,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 57344,
+            "memory_bytes": 57344,
+            "flags": 5
+          },
+          {
+            "address": 1105920,
+            "file_offset": 61440,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1110016,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "build_seconds": 0.168933,
+      "image_path": "/tmp/zenferros-task611-review/debug/scheduler_guard/ferros-multiboot.elf",
+      "undefined_symbols": 0
+    },
+    "result": {
+      "command": [
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/bin/qemu-system-x86_64",
+        "-L",
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/share/qemu",
+        "-machine",
+        "pc,accel=tcg",
+        "-cpu",
+        "qemu64",
+        "-m",
+        "64M",
+        "-smp",
+        "1",
+        "-nodefaults",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-nic",
+        "none",
+        "-no-reboot",
+        "-device",
+        "isa-debug-exit,iobase=0xf4,iosize=0x04",
+        "-kernel",
+        "/tmp/zenferros-task611-review/debug/scheduler_guard/ferros-multiboot.elf"
+      ],
+      "status": 35,
+      "timed_out": false,
+      "cancelled": false,
+      "seconds": 0.069676,
+      "passed": false,
+      "error": "QEMU status 35, expected 33"
+    },
+    "serial": "SCHEDULER GUARD NEGATIVE\nFERROS PANIC: thread stack guard violation\n"
+  },
+  {
+    "profile": "debug",
+    "kind": "scheduler_invalid",
+    "build": {
+      "source_units": [
+        "arch/x86_64/abi.zen",
+        "drivers/serial.zen",
+        "memory.zen",
+        "interrupts.zen",
+        "scheduler.zen",
+        "runtime.zen",
+        "main.zen"
+      ],
+      "source_paths": [
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/abi.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/drivers/serial.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/memory.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/interrupts.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/scheduler.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/runtime.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/tests/scheduler_invalid.zen"
+      ],
+      "release": false,
+      "payload": {
+        "elf_class": 2,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 76000,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 57344,
+            "memory_bytes": 57344,
+            "flags": 5
+          },
+          {
+            "address": 1105920,
+            "file_offset": 61440,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1110016,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "image": {
+        "elf_class": 1,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 73740,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 57344,
+            "memory_bytes": 57344,
+            "flags": 5
+          },
+          {
+            "address": 1105920,
+            "file_offset": 61440,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1110016,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "build_seconds": 0.160878,
+      "image_path": "/tmp/zenferros-task611-review/debug/scheduler_invalid/ferros-multiboot.elf",
+      "undefined_symbols": 0
+    },
+    "result": {
+      "command": [
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/bin/qemu-system-x86_64",
+        "-L",
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/share/qemu",
+        "-machine",
+        "pc,accel=tcg",
+        "-cpu",
+        "qemu64",
+        "-m",
+        "64M",
+        "-smp",
+        "1",
+        "-nodefaults",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-nic",
+        "none",
+        "-no-reboot",
+        "-device",
+        "isa-debug-exit,iobase=0xf4,iosize=0x04",
+        "-kernel",
+        "/tmp/zenferros-task611-review/debug/scheduler_invalid/ferros-multiboot.elf"
+      ],
+      "status": 35,
+      "timed_out": false,
+      "cancelled": false,
+      "seconds": 0.072714,
+      "passed": false,
+      "error": "QEMU status 35, expected 33"
+    },
+    "serial": "SCHEDULER STATE NEGATIVE\nFERROS PANIC: invalid thread scheduler state\n"
+  },
+  {
+    "profile": "release",
+    "kind": "success",
+    "build": {
+      "source_units": [
+        "arch/x86_64/abi.zen",
+        "drivers/serial.zen",
+        "memory.zen",
+        "interrupts.zen",
+        "scheduler.zen",
+        "runtime.zen",
+        "main.zen"
+      ],
+      "source_paths": [
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/abi.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/drivers/serial.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/memory.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/interrupts.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/scheduler.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/runtime.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/main.zen"
+      ],
+      "release": true,
+      "payload": {
+        "elf_class": 2,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 31000,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 16384,
+            "memory_bytes": 16384,
+            "flags": 5
+          },
+          {
+            "address": 1064960,
+            "file_offset": 20480,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1069056,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "image": {
+        "elf_class": 1,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 29636,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 16384,
+            "memory_bytes": 16384,
+            "flags": 5
+          },
+          {
+            "address": 1064960,
+            "file_offset": 20480,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1069056,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "build_seconds": 0.302123,
+      "image_path": "/tmp/zenferros-task611-review/release/ferros-multiboot.elf",
+      "undefined_symbols": 0
+    },
+    "result": {
+      "command": [
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/bin/qemu-system-x86_64",
+        "-L",
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/share/qemu",
+        "-machine",
+        "pc,accel=tcg",
+        "-cpu",
+        "qemu64",
+        "-m",
+        "64M",
+        "-smp",
+        "1",
+        "-nodefaults",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-nic",
+        "none",
+        "-no-reboot",
+        "-device",
+        "isa-debug-exit,iobase=0xf4,iosize=0x04",
+        "-kernel",
+        "/tmp/zenferros-task611-review/release/ferros-multiboot.elf"
+      ],
+      "status": 33,
+      "timed_out": false,
+      "cancelled": false,
+      "seconds": 0.330667,
+      "passed": true,
+      "scheduler": {
+        "switches": 45,
+        "preemptions": 25,
+        "yields": 16,
+        "completed": 3
+      }
+    }
+  },
+  {
+    "profile": "release",
+    "kind": "scheduler_guard",
+    "build": {
+      "source_units": [
+        "arch/x86_64/abi.zen",
+        "drivers/serial.zen",
+        "memory.zen",
+        "interrupts.zen",
+        "scheduler.zen",
+        "runtime.zen",
+        "main.zen"
+      ],
+      "source_paths": [
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/abi.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/drivers/serial.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/memory.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/interrupts.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/scheduler.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/runtime.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/tests/scheduler_guard.zen"
+      ],
+      "release": true,
+      "payload": {
+        "elf_class": 2,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 30752,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 16384,
+            "memory_bytes": 16384,
+            "flags": 5
+          },
+          {
+            "address": 1064960,
+            "file_offset": 20480,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1069056,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "image": {
+        "elf_class": 1,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 29444,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 16384,
+            "memory_bytes": 16384,
+            "flags": 5
+          },
+          {
+            "address": 1064960,
+            "file_offset": 20480,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1069056,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "build_seconds": 0.231789,
+      "image_path": "/tmp/zenferros-task611-review/release/scheduler_guard/ferros-multiboot.elf",
+      "undefined_symbols": 0
+    },
+    "result": {
+      "command": [
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/bin/qemu-system-x86_64",
+        "-L",
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/share/qemu",
+        "-machine",
+        "pc,accel=tcg",
+        "-cpu",
+        "qemu64",
+        "-m",
+        "64M",
+        "-smp",
+        "1",
+        "-nodefaults",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-nic",
+        "none",
+        "-no-reboot",
+        "-device",
+        "isa-debug-exit,iobase=0xf4,iosize=0x04",
+        "-kernel",
+        "/tmp/zenferros-task611-review/release/scheduler_guard/ferros-multiboot.elf"
+      ],
+      "status": 35,
+      "timed_out": false,
+      "cancelled": false,
+      "seconds": 0.049362,
+      "passed": false,
+      "error": "QEMU status 35, expected 33"
+    },
+    "serial": "SCHEDULER GUARD NEGATIVE\nFERROS PANIC: thread stack guard violation\n"
+  },
+  {
+    "profile": "release",
+    "kind": "scheduler_invalid",
+    "build": {
+      "source_units": [
+        "arch/x86_64/abi.zen",
+        "drivers/serial.zen",
+        "memory.zen",
+        "interrupts.zen",
+        "scheduler.zen",
+        "runtime.zen",
+        "main.zen"
+      ],
+      "source_paths": [
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/abi.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/drivers/serial.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/memory.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/interrupts.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/scheduler.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/runtime.zen",
+        "/home/ferranfg/proyectos/ZenFerros/ferros/tests/scheduler_invalid.zen"
+      ],
+      "release": true,
+      "payload": {
+        "elf_class": 2,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 30784,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 16384,
+            "memory_bytes": 16384,
+            "flags": 5
+          },
+          {
+            "address": 1064960,
+            "file_offset": 20480,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1069056,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "image": {
+        "elf_class": 1,
+        "entry": "0x101000",
+        "multiboot_offset": 4096,
+        "bytes": 29472,
+        "load_segments": [
+          {
+            "address": 1048576,
+            "file_offset": 4096,
+            "file_bytes": 16384,
+            "memory_bytes": 16384,
+            "flags": 5
+          },
+          {
+            "address": 1064960,
+            "file_offset": 20480,
+            "file_bytes": 4096,
+            "memory_bytes": 4096,
+            "flags": 4
+          },
+          {
+            "address": 1069056,
+            "file_offset": 4096,
+            "file_bytes": 0,
+            "memory_bytes": 425984,
+            "flags": 6
+          }
+        ]
+      },
+      "build_seconds": 0.241161,
+      "image_path": "/tmp/zenferros-task611-review/release/scheduler_invalid/ferros-multiboot.elf",
+      "undefined_symbols": 0
+    },
+    "result": {
+      "command": [
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/bin/qemu-system-x86_64",
+        "-L",
+        "/home/ferranfg/proyectos/ZenFerros/.tools/qemu/usr/share/qemu",
+        "-machine",
+        "pc,accel=tcg",
+        "-cpu",
+        "qemu64",
+        "-m",
+        "64M",
+        "-smp",
+        "1",
+        "-nodefaults",
+        "-display",
+        "none",
+        "-monitor",
+        "none",
+        "-serial",
+        "stdio",
+        "-nic",
+        "none",
+        "-no-reboot",
+        "-device",
+        "isa-debug-exit,iobase=0xf4,iosize=0x04",
+        "-kernel",
+        "/tmp/zenferros-task611-review/release/scheduler_invalid/ferros-multiboot.elf"
+      ],
+      "status": 35,
+      "timed_out": false,
+      "cancelled": false,
+      "seconds": 0.05043,
+      "passed": false,
+      "error": "QEMU status 35, expected 33"
+    },
+    "serial": "SCHEDULER STATE NEGATIVE\nFERROS PANIC: invalid thread scheduler state\n"
+  }
+]

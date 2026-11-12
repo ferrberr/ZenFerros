@@ -1,0 +1,14 @@
+// Host-only support for the VFS unit tests: the two supervisor getters are
+// provided by the C mock so vfs.zen can run unprivileged on the build host.
+extern "C" {
+    fn test_ramfs_pool()->u64;
+    fn test_vfs_state()->u64;
+}
+
+fn ferros_ramfs_pool()->u64 {
+    unsafe { return test_ramfs_pool(); }
+}
+
+fn ferros_vfs_state()->u64 {
+    unsafe { return test_vfs_state(); }
+}

@@ -1,0 +1,121 @@
+{
+  "source_units": [
+    "arch/x86_64/abi.zen",
+    "drivers/serial.zen",
+    "memory.zen",
+    "interrupts.zen",
+    "scheduler.zen",
+    "userspace.zen",
+    "runtime.zen",
+    "main.zen"
+  ],
+  "source_paths": [
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/abi.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/drivers/serial.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/memory.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/interrupts.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/scheduler.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/userspace.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/runtime.zen",
+    "/home/ferranfg/proyectos/ZenFerros/ferros/kernel/main.zen"
+  ],
+  "release": true,
+  "user": {
+    "artifact_path": "/tmp/task711-user-release/user/ferros-user.elf",
+    "source_path": "/home/ferranfg/proyectos/ZenFerros/ferros/user/main.zen",
+    "release": true,
+    "undefined_symbols": 0,
+    "build_seconds": 0.052322,
+    "entry": 1073741824,
+    "bytes": 13568,
+    "load_segments": [
+      {
+        "address": 1073741824,
+        "file_offset": 4096,
+        "file_bytes": 4096,
+        "memory_bytes": 4096,
+        "page_end": 1073745920,
+        "flags": 5
+      },
+      {
+        "address": 1073745920,
+        "file_offset": 8192,
+        "file_bytes": 4096,
+        "memory_bytes": 4096,
+        "page_end": 1073750016,
+        "flags": 4
+      },
+      {
+        "address": 1073750016,
+        "file_offset": 4096,
+        "file_bytes": 0,
+        "memory_bytes": 4096,
+        "page_end": 1073754112,
+        "flags": 6
+      }
+    ],
+    "bss_bytes": 4096
+  },
+  "user_image_path": "/tmp/task711-user-release/user/ferros-user.elf",
+  "payload": {
+    "elf_class": 2,
+    "entry": "0x101000",
+    "multiboot_offset": 4096,
+    "bytes": 52256,
+    "load_segments": [
+      {
+        "address": 1048576,
+        "file_offset": 4096,
+        "file_bytes": 24576,
+        "memory_bytes": 24576,
+        "flags": 5
+      },
+      {
+        "address": 1073152,
+        "file_offset": 28672,
+        "file_bytes": 16384,
+        "memory_bytes": 16384,
+        "flags": 4
+      },
+      {
+        "address": 1089536,
+        "file_offset": 45056,
+        "file_bytes": 66,
+        "memory_bytes": 479232,
+        "flags": 6
+      }
+    ]
+  },
+  "image": {
+    "elf_class": 1,
+    "entry": "0x101000",
+    "multiboot_offset": 4096,
+    "bytes": 50744,
+    "load_segments": [
+      {
+        "address": 1048576,
+        "file_offset": 4096,
+        "file_bytes": 24576,
+        "memory_bytes": 24576,
+        "flags": 5
+      },
+      {
+        "address": 1073152,
+        "file_offset": 28672,
+        "file_bytes": 16384,
+        "memory_bytes": 16384,
+        "flags": 4
+      },
+      {
+        "address": 1089536,
+        "file_offset": 45056,
+        "file_bytes": 66,
+        "memory_bytes": 479232,
+        "flags": 6
+      }
+    ]
+  },
+  "build_seconds": 0.546811,
+  "image_path": "/tmp/task711-user-release/ferros-multiboot.elf",
+  "undefined_symbols": 0
+}

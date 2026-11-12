@@ -1,0 +1,13 @@
+// Hito 4 kernel: memory algorithms, IDT/PIC/PIT and policy are written in Zen.
+fn finish(status:u32) {
+    unsafe { ferros_out32(0xf4u16,status); ferros_halt(); }
+}
+
+fn kernel_panic(reason:str) {
+    unsafe { ferros_interrupt_disable(); }
+    serial_write("FERROS PANIC: ");
+    serial_write(reason);
+    serial_write("\n");
+    finish(0x11u32);
+}
+

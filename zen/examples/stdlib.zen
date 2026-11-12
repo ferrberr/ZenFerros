@@ -1,0 +1,59 @@
+// TASK-901A: first bootstrap stdlib block for immutable `str` views.
+// `str` is a static (data, len) view: no allocation, no libc and no Unicode
+// normalization. Every builtin compares or scans bytes and stays in bounds.
+
+fn show_eq(a: str, b: str) -> void {
+    if str_eq(a, b) {
+        print("true");
+    } else {
+        print("false");
+    }
+    print("\n");
+}
+
+fn show_cmp(a: str, b: str) -> void {
+    print_int(str_cmp(a, b) as i64);
+    print("\n");
+}
+
+fn show_find(haystack: str, needle: str) -> void {
+    print_int(str_find(haystack, needle));
+    print("\n");
+}
+
+fn main() -> i32 {
+    print("eq zen zen = ");
+    show_eq("zen", "zen");
+    print("eq zen zen-space = ");
+    show_eq("zen", "zen ");
+    print("eq empty empty = ");
+    show_eq("", "");
+    print("eq nul-a nul-b = ");
+    show_eq("a\0b", "a\0c");
+
+    print("cmp abc abd = ");
+    show_cmp("abc", "abd");
+    print("cmp abd abc = ");
+    show_cmp("abd", "abc");
+    print("cmp abc abc = ");
+    show_cmp("abc", "abc");
+    print("cmp ab abc = ");
+    show_cmp("ab", "abc");
+    print("cmp empty x = ");
+    show_cmp("", "x");
+
+    print("find banana na = ");
+    show_find("banana", "na");
+    print("find banana ba = ");
+    show_find("banana", "ba");
+    print("find banana ana = ");
+    show_find("banana", "ana");
+    print("find banana z = ");
+    show_find("banana", "z");
+    print("find banana empty = ");
+    show_find("banana", "");
+    print("find empty x = ");
+    show_find("", "x");
+    print("stdlib ok\n");
+    return 0;
+}

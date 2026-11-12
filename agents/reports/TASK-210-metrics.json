@@ -1,0 +1,77 @@
+{
+  "date": "2026-11-11",
+  "backend": "C11 via cc (GCC 16.2.1)",
+  "measurements": [
+    {
+      "program": "hello",
+      "optimized": false,
+      "compile_wall_seconds": 0.037313,
+      "max_compile_rss_kib": null,
+      "binary_bytes": 17056,
+      "stdout": "Hello, Zen!\n",
+      "exit_code": 0,
+      "elf_magic": true,
+      "command": [
+        "/home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen",
+        "build",
+        "/home/ferranfg/proyectos/ZenFerros/zen/examples/hello.zen",
+        "-o",
+        "/home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/hello-debug"
+      ]
+    },
+    {
+      "program": "hello",
+      "optimized": true,
+      "compile_wall_seconds": 0.033472,
+      "max_compile_rss_kib": null,
+      "binary_bytes": 16104,
+      "stdout": "Hello, Zen!\n",
+      "exit_code": 0,
+      "elf_magic": true,
+      "command": [
+        "/home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen",
+        "build",
+        "/home/ferranfg/proyectos/ZenFerros/zen/examples/hello.zen",
+        "-o",
+        "/home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/hello-optimized",
+        "--release"
+      ]
+    },
+    {
+      "program": "factorial",
+      "optimized": false,
+      "compile_wall_seconds": 0.036476,
+      "max_compile_rss_kib": null,
+      "binary_bytes": 17088,
+      "stdout": "factorial(10) = 3628800\n",
+      "exit_code": 0,
+      "elf_magic": true,
+      "command": [
+        "/home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen",
+        "build",
+        "/home/ferranfg/proyectos/ZenFerros/zen/examples/factorial.zen",
+        "-o",
+        "/home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/factorial-debug"
+      ]
+    },
+    {
+      "program": "factorial",
+      "optimized": true,
+      "compile_wall_seconds": 0.038247,
+      "max_compile_rss_kib": null,
+      "binary_bytes": 16192,
+      "stdout": "factorial(10) = 3628800\n",
+      "exit_code": 0,
+      "elf_magic": true,
+      "command": [
+        "/home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen",
+        "build",
+        "/home/ferranfg/proyectos/ZenFerros/zen/examples/factorial.zen",
+        "-o",
+        "/home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/factorial-optimized",
+        "--release"
+      ]
+    }
+  ],
+  "compiler_release_bytes": 1062440
+}

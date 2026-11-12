@@ -1,0 +1,27 @@
+// Host-only dependencies: never link CPU/IO assembly into this executable.
+extern "C" {
+    fn test_pmm_alloc()->u64;
+    fn test_pmm_free(address:u64)->u64;
+    fn test_free_count()->u64;
+    fn test_serial(value:u8)->u64;
+    fn test_panic();
+}
+fn pmm_alloc()->u64 { unsafe { return test_pmm_alloc(); } }
+fn pmm_free(address:u64)->bool { unsafe { return test_pmm_free(address)==1; } }
+fn pmm_free_count()->u64 { unsafe { return test_free_count(); } }
+fn memory_state_read(offset:u64)->u64 { return 1; }
+fn memory_page_entry(address:u64)->u64 { return 3; }
+fn serial_byte(value:u8)->bool { unsafe { return test_serial(value)==1; } }
+fn serial_write(value:str)->bool { return true; }
+fn kernel_panic(reason:str) { unsafe { test_panic(); } }
+fn irq_get(offset:u64)->u64 { return 42; }
+fn scheduler_timer_start() {}
+fn scheduler_timer_stop() {}
+pub fn test_elf(image:u64,length:u64)->bool { return user_elf_validate(image,length); }
+pub fn test_load(image:u64,length:u64)->bool { return user_load(image,length); }
+pub fn test_clear()->bool { return user_space_clear(); }
+pub fn test_buffer(address:u64,length:u64)->bool { return user_buffer_valid(address,length); }
+pub fn test_write(address:u64,length:u64)->u64 { return user_write(address,length); }
+pub fn test_dispatch(vector:u64,error:u64,frame:u64,cr2:u64) { user_interrupt_dispatch(vector,error,frame,cr2); }
+// Host-only stub: the mock never drives COM1; syscall 8 reports "no data".
+fn serial_try_read()->i64 { return -1; }

@@ -1,0 +1,39 @@
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen build /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/kernel.zen --target x86_64-unknown-none --emit obj -o /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/kernel.o
+Built /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/kernel.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/boot/entry.S -o /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/entry.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/io.S -o /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/io.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/interrupts.S -o /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/interrupts.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/context.S -o /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/context.o
+exit=0
+
+$ ld -m elf_x86_64 -z max-page-size=0x1000 -z noexecstack -nostdlib -static -T /home/ferranfg/proyectos/ZenFerros/ferros/boot/linker.ld /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/entry.o /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/kernel.o /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/io.o /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/interrupts.o /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/context.o -o /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/ferros-x86_64.elf
+exit=0
+
+$ objcopy -O elf32-i386 /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/ferros-x86_64.elf /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/ferros-multiboot.elf
+exit=0
+
+$ nm -u /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/ferros-x86_64.elf
+exit=0
+
+$ nm -u /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/ferros-multiboot.elf
+exit=0
+
+$ objcopy --dump-section .text=/home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/text64.bin /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/ferros-x86_64.elf
+exit=0
+
+$ objcopy --dump-section .text=/home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/text32.bin /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/ferros-multiboot.elf
+exit=0
+
+$ objcopy --dump-section .rodata=/home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/rodata64.bin /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/ferros-x86_64.elf
+exit=0
+
+$ objcopy --dump-section .rodata=/home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/rodata32.bin /home/ferranfg/proyectos/ZenFerros/ferros/build/task610-negative/return-False/ferros-multiboot.elf
+exit=0

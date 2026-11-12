@@ -1,0 +1,645 @@
+// TASK-902D: lexer selfhost que materializa tokens (kind, span, valor/hash).
+//
+// Contrato:
+//   pub fn zen_lex_tokens(source:u64,length:u64,out:u64,max_tokens:u64)->u64
+//
+// Escribe en `out` (array fijo del llamador, capacidad `max_tokens` registros
+// de 16 bytes, little-endian x86_64) y devuelve el numero de tokens sin Eof:
+//   out+0  u32 kind
+//   out+4  u32 start
+//   out+8  u32 end
+//   out+12 u32 value
+// Devuelve 0xFFFFFFFF si la entrada excede `max_tokens` o si encuentra un
+// error lexico irrecuperable (token Error en el lexer Rust: comentario sin
+// cerrar, literal mal formado, caracter inesperado). En ese caso el contenido
+// parcial de `out` no es significativo. Eof nunca se materializa.
+//
+// Sin libc, sin structs, sin estado global y sin heap. El array fijo es el
+// `out` del llamador; no se usan buffers locales de tokens (asi se evita el
+// memset que GCC emite para arrays locales grandes y el objeto queda sin
+// simbolos indefinidos). Los span u32 limitan la entrada a 4 GiB.
+//
+// Tabla numerica estable de kinds (la MISMA que KIND_IDS en
+// zen/selfhost/tests/test_selfhost_lexer_tokens.py; el test comprueba ademas
+// que cubre todas las variantes del enum TokenKind de Rust):
+//
+//   0  reservado (nunca se escribe)
+//   1 Integer   2 Float     3 Bool      4 Char      5 String    6 Null
+//   7 Ident
+//   8 Fn        9 Let      10 Mut      11 Const    12 If       13 Else
+//  14 While    15 For      16 Return   17 Break    18 Continue 19 Struct
+//  20 Impl     21 Mod      22 Use      23 Pub      24 As       25 Type
+//  26 Enum     27 Match    28 Loop     29 Unsafe   30 Extern   31 Sizeof
+//  32 Alignof  33 Offsetof 34 Cast     35 Transmute 36 True    37 False
+//  38 Void     39 Bool_    40 Char_    41 I8       42 I16      43 I32
+//  44 I64      45 I128     46 Isize    47 U8       48 U16      49 U32
+//  50 U64      51 U128     52 Usize    53 F32      54 F64      55 Never
+//  56 Plus     57 Minus    58 Star     59 Slash    60 Percent  61 StarStar
+//  62 EqEq     63 NotEq    64 Lt       65 Gt       66 LtEq     67 GtEq
+//  68 AndAnd   69 OrOr     70 Not      71 Amp      72 Pipe     73 Caret
+//  74 Tilde    75 Shl      76 Shr      77 Assign   78 PlusEq   79 MinusEq
+//  80 StarEq   81 SlashEq  82 PercentEq 83 AmpEq   84 PipeEq   85 CaretEq
+//  86 ShlEq    87 ShrEq    88 Dot      89 DotDot   90 DotDotDot 91 Arrow
+//  92 FatArrow 93 DoubleColon 94 Colon  95 Semi    96 Comma    97 LParen
+//  98 RParen   99 LBracket 100 RBracket 101 LBrace 102 RBrace  103 Pipe2
+// 104 Question 105 At     106 Eof     107 Error
+//
+// Pipe2 y Bool/Null nunca los emite el scanner Rust; se reservan para que la
+// tabla sea total y estable.
+//
+// `value`:
+//   - Ident  -> FNV-1a 32 de los bytes del lexema completo (start..end).
+//   - String -> FNV-1a 32 de los bytes ENTRE las comillas, tal como aparecen
+//               en el fuente: NO se decodifican escapes. "\n" aporta los dos
+//               bytes '\\' 'n', no un byte 0x0A.
+//   - Char   -> igual que String (bytes entre comillas sin decodificar).
+//   - Integer-> valor numerico exacto (base 2/8/10/16, se ignoran '_') si
+//               cabe en u32; si no cabe se satura a 0xFFFFFFFF. Por tanto el
+//               literal 4294967295 y cualquier entero mayor comparten valor:
+//               el campo es una huella, no el valor u128 completo.
+//   - Resto (Float, keywords, operadores, Error) -> 0. Los floats no caben en
+//               u32 y su comparacion queda excluida en el test.
+//
+// Limitaciones documentadas:
+//   - Espacios Unicode: Rust usa char::is_whitespace; aqui solo ASCII
+//     (espacio, tab, LF, CR, VT, FF). Los fixtures son ASCII.
+//   - Enteros mayores que u128: Rust emite token Error; aqui se saturan a
+//     0xFFFFFFFF (no se detecta el desbordamiento de u128). No hay casos en
+//     los fixtures.
+//   - Caracteres no ASCII fuera de literales: Rust los rechaza como Error;
+//     aqui tambien (byte sin operador conocido) -> 0xFFFFFFFF.
+//   - Char multibyte UTF-8: se consume el byte inicial y sus continuaciones
+//     (0x80..0xBF); el value hashea los bytes crudos. Los literales de un solo
+//     scalar Unicode validos coinciden con Rust.
+//
+// La logica de escaneo replica zen/compiler/src/lexer/scanner.rs: mismo orden
+// de prefijos, mismas bases y sufijos, mismo tratamiento de comentarios
+// anidados y escapes, y misma tabla de operadores.
+
+fn read_u8(address:u64)->u64 {
+    unsafe { return volatile_load(address as *u8) as u64; }
+}
+
+// 256 es un centinela fuera de rango para no leer mas alla de `length`.
+fn byte_at(source:u64,length:u64,pos:u64)->u64 {
+    if pos>=length { return 256; }
+    return read_u8(source+pos);
+}
+
+fn lit_eq(source:u64,total:u64,pos:u64,text:str)->bool {
+    let n:u64=str_len(text);
+    if pos+n>total { return false; }
+    let mut i:u64=0;
+    while i<n {
+        if read_u8(source+pos+i)!=str_byte(text,i) as u64 { return false; }
+        i+=1;
+    }
+    return true;
+}
+
+fn text_eq(source:u64,total:u64,pos:u64,len:u64,text:str)->bool {
+    if str_len(text)!=len { return false; }
+    return lit_eq(source,total,pos,text);
+}
+
+fn is_space(b:u64)->bool {
+    if b==32 || b==9 || b==10 || b==13 { return true; }
+    if b==11 || b==12 { return true; }
+    return false;
+}
+
+fn is_digit(b:u64)->bool {
+    if b>=48 && b<=57 { return true; }
+    return false;
+}
+
+fn is_alpha(b:u64)->bool {
+    if b>=97 && b<=122 { return true; }
+    if b>=65 && b<=90 { return true; }
+    return false;
+}
+
+fn is_alnum(b:u64)->bool {
+    if is_digit(b) || is_alpha(b) { return true; }
+    return false;
+}
+
+fn is_ident_char(b:u64)->bool {
+    if is_alnum(b) || b==95 { return true; }
+    return false;
+}
+
+fn is_hex(b:u64)->bool {
+    if is_digit(b) { return true; }
+    if b>=97 && b<=102 { return true; }
+    if b>=65 && b<=70 { return true; }
+    return false;
+}
+
+fn is_digit_base(b:u64,base:u64)->bool {
+    if base==16 { return is_hex(b); }
+    if base==8 { return b>=48 && b<=55; }
+    if base==2 { return b==48 || b==49; }
+    return is_digit(b);
+}
+
+fn digit_value(b:u64)->u64 {
+    if b>=48 && b<=57 { return b-48; }
+    if b>=97 && b<=102 { return b-87; }
+    if b>=65 && b<=70 { return b-55; }
+    return 0;
+}
+
+// FNV-1a 32 sobre los bytes [from,to). Se calcula en u64 y se enmascara para
+// no depender de la aritmetica de u32 del backend.
+fn fnv1a(source:u64,from:u64,to:u64)->u64 {
+    let mut hash:u64=2166136261u64;
+    let mut i:u64=from;
+    while i<to {
+        hash=((hash ^ read_u8(source+i)) * 16777619u64) & 4294967295u64;
+        i+=1;
+    }
+    return hash;
+}
+
+// Valor del literal entero que empieza en `start` (tras el prefijo 0x/0b/0o).
+// Ignora '_', se detiene en el primer byte que no es digito de la base (el
+// sufijo) y satura a 0xFFFFFFFF si no cabe en u32.
+fn number_value(source:u64,length:u64,start:u64,base:u64)->u64 {
+    let mut i:u64=start;
+    let mut value:u64=0u64;
+    let mut saturated:bool=false;
+    while i<length {
+        let b:u64=read_u8(source+i);
+        if b==95 { i+=1; continue; }
+        if !is_digit_base(b,base) { break; }
+        if !saturated {
+            let d:u64=digit_value(b);
+            if value>(4294967295u64-d)/base {
+                saturated=true;
+            } else {
+                value=value*base+d;
+            }
+        }
+        i+=1;
+    }
+    if saturated { return 4294967295u64; }
+    return value;
+}
+
+// Id estable de keyword (tabla de zen/compiler/src/lexer/keywords.rs), o 0 si
+// es un identificador normal.
+fn keyword_id(source:u64,total:u64,pos:u64,len:u64)->u64 {
+    if text_eq(source,total,pos,len,"fn") { return 8u64; }
+    if text_eq(source,total,pos,len,"let") { return 9u64; }
+    if text_eq(source,total,pos,len,"mut") { return 10u64; }
+    if text_eq(source,total,pos,len,"const") { return 11u64; }
+    if text_eq(source,total,pos,len,"if") { return 12u64; }
+    if text_eq(source,total,pos,len,"else") { return 13u64; }
+    if text_eq(source,total,pos,len,"while") { return 14u64; }
+    if text_eq(source,total,pos,len,"for") { return 15u64; }
+    if text_eq(source,total,pos,len,"return") { return 16u64; }
+    if text_eq(source,total,pos,len,"break") { return 17u64; }
+    if text_eq(source,total,pos,len,"continue") { return 18u64; }
+    if text_eq(source,total,pos,len,"struct") { return 19u64; }
+    if text_eq(source,total,pos,len,"impl") { return 20u64; }
+    if text_eq(source,total,pos,len,"mod") { return 21u64; }
+    if text_eq(source,total,pos,len,"use") { return 22u64; }
+    if text_eq(source,total,pos,len,"pub") { return 23u64; }
+    if text_eq(source,total,pos,len,"as") { return 24u64; }
+    if text_eq(source,total,pos,len,"type") { return 25u64; }
+    if text_eq(source,total,pos,len,"enum") { return 26u64; }
+    if text_eq(source,total,pos,len,"match") { return 27u64; }
+    if text_eq(source,total,pos,len,"loop") { return 28u64; }
+    if text_eq(source,total,pos,len,"unsafe") { return 29u64; }
+    if text_eq(source,total,pos,len,"extern") { return 30u64; }
+    if text_eq(source,total,pos,len,"sizeof") { return 31u64; }
+    if text_eq(source,total,pos,len,"alignof") { return 32u64; }
+    if text_eq(source,total,pos,len,"offsetof") { return 33u64; }
+    if text_eq(source,total,pos,len,"cast") { return 34u64; }
+    if text_eq(source,total,pos,len,"transmute") { return 35u64; }
+    if text_eq(source,total,pos,len,"true") { return 36u64; }
+    if text_eq(source,total,pos,len,"false") { return 37u64; }
+    if text_eq(source,total,pos,len,"void") { return 38u64; }
+    if text_eq(source,total,pos,len,"bool") { return 39u64; }
+    if text_eq(source,total,pos,len,"char") { return 40u64; }
+    if text_eq(source,total,pos,len,"i8") { return 41u64; }
+    if text_eq(source,total,pos,len,"i16") { return 42u64; }
+    if text_eq(source,total,pos,len,"i32") { return 43u64; }
+    if text_eq(source,total,pos,len,"i64") { return 44u64; }
+    if text_eq(source,total,pos,len,"i128") { return 45u64; }
+    if text_eq(source,total,pos,len,"isize") { return 46u64; }
+    if text_eq(source,total,pos,len,"u8") { return 47u64; }
+    if text_eq(source,total,pos,len,"u16") { return 48u64; }
+    if text_eq(source,total,pos,len,"u32") { return 49u64; }
+    if text_eq(source,total,pos,len,"u64") { return 50u64; }
+    if text_eq(source,total,pos,len,"u128") { return 51u64; }
+    if text_eq(source,total,pos,len,"usize") { return 52u64; }
+    if text_eq(source,total,pos,len,"f32") { return 53u64; }
+    if text_eq(source,total,pos,len,"f64") { return 54u64; }
+    if text_eq(source,total,pos,len,"never") { return 55u64; }
+    return 0u64;
+}
+
+fn is_int_suffix(source:u64,total:u64,pos:u64,len:u64)->bool {
+    if text_eq(source,total,pos,len,"i8") { return true; }
+    if text_eq(source,total,pos,len,"i16") { return true; }
+    if text_eq(source,total,pos,len,"i32") { return true; }
+    if text_eq(source,total,pos,len,"i64") { return true; }
+    if text_eq(source,total,pos,len,"i128") { return true; }
+    if text_eq(source,total,pos,len,"isize") { return true; }
+    if text_eq(source,total,pos,len,"u8") { return true; }
+    if text_eq(source,total,pos,len,"u16") { return true; }
+    if text_eq(source,total,pos,len,"u32") { return true; }
+    if text_eq(source,total,pos,len,"u64") { return true; }
+    if text_eq(source,total,pos,len,"u128") { return true; }
+    if text_eq(source,total,pos,len,"usize") { return true; }
+    return false;
+}
+
+// Longitud del operador mas largo en `pos`, o 0 si el byte no es operador.
+// Mismo orden que scanner.rs: prefijos de 3 y 2 bytes antes que los de 1.
+fn op_len(source:u64,total:u64,pos:u64)->u64 {
+    if lit_eq(source,total,pos,"...") { return 3; }
+    if lit_eq(source,total,pos,"<<=") { return 3; }
+    if lit_eq(source,total,pos,">>=") { return 3; }
+    if lit_eq(source,total,pos,"==") { return 2; }
+    if lit_eq(source,total,pos,"!=") { return 2; }
+    if lit_eq(source,total,pos,"<=") { return 2; }
+    if lit_eq(source,total,pos,">=") { return 2; }
+    if lit_eq(source,total,pos,"&&") { return 2; }
+    if lit_eq(source,total,pos,"||") { return 2; }
+    if lit_eq(source,total,pos,"+=") { return 2; }
+    if lit_eq(source,total,pos,"-=") { return 2; }
+    if lit_eq(source,total,pos,"**") { return 2; }
+    if lit_eq(source,total,pos,"*=") { return 2; }
+    if lit_eq(source,total,pos,"/=") { return 2; }
+    if lit_eq(source,total,pos,"%=") { return 2; }
+    if lit_eq(source,total,pos,"&=") { return 2; }
+    if lit_eq(source,total,pos,"|=") { return 2; }
+    if lit_eq(source,total,pos,"^=") { return 2; }
+    if lit_eq(source,total,pos,"<<") { return 2; }
+    if lit_eq(source,total,pos,">>") { return 2; }
+    if lit_eq(source,total,pos,"..") { return 2; }
+    if lit_eq(source,total,pos,"->") { return 2; }
+    if lit_eq(source,total,pos,"=>") { return 2; }
+    if lit_eq(source,total,pos,"::") { return 2; }
+    let b:u64=read_u8(source+pos);
+    if b==43 || b==45 || b==42 || b==47 || b==37 { return 1; }
+    if b==60 || b==62 || b==33 || b==38 || b==124 || b==94 || b==126 { return 1; }
+    if b==61 || b==46 || b==58 || b==59 || b==44 { return 1; }
+    if b==40 || b==41 || b==91 || b==93 || b==123 || b==125 { return 1; }
+    if b==63 || b==64 { return 1; }
+    return 0;
+}
+
+// Id estable del operador en `pos` (op_len>0 garantizado). Misma tabla y mismo
+// orden que op_len/scanner.rs.
+fn op_kind(source:u64,total:u64,pos:u64)->u64 {
+    if lit_eq(source,total,pos,"...") { return 90u64; }
+    if lit_eq(source,total,pos,"<<=") { return 86u64; }
+    if lit_eq(source,total,pos,">>=") { return 87u64; }
+    if lit_eq(source,total,pos,"==") { return 62u64; }
+    if lit_eq(source,total,pos,"!=") { return 63u64; }
+    if lit_eq(source,total,pos,"<=") { return 66u64; }
+    if lit_eq(source,total,pos,">=") { return 67u64; }
+    if lit_eq(source,total,pos,"&&") { return 68u64; }
+    if lit_eq(source,total,pos,"||") { return 69u64; }
+    if lit_eq(source,total,pos,"+=") { return 78u64; }
+    if lit_eq(source,total,pos,"-=") { return 79u64; }
+    if lit_eq(source,total,pos,"**") { return 61u64; }
+    if lit_eq(source,total,pos,"*=") { return 80u64; }
+    if lit_eq(source,total,pos,"/=") { return 81u64; }
+    if lit_eq(source,total,pos,"%=") { return 82u64; }
+    if lit_eq(source,total,pos,"&=") { return 83u64; }
+    if lit_eq(source,total,pos,"|=") { return 84u64; }
+    if lit_eq(source,total,pos,"^=") { return 85u64; }
+    if lit_eq(source,total,pos,"<<") { return 75u64; }
+    if lit_eq(source,total,pos,">>") { return 76u64; }
+    if lit_eq(source,total,pos,"..") { return 89u64; }
+    if lit_eq(source,total,pos,"->") { return 91u64; }
+    if lit_eq(source,total,pos,"=>") { return 92u64; }
+    if lit_eq(source,total,pos,"::") { return 93u64; }
+    let b:u64=read_u8(source+pos);
+    if b==43 { return 56u64; }
+    if b==45 { return 57u64; }
+    if b==42 { return 58u64; }
+    if b==47 { return 59u64; }
+    if b==37 { return 60u64; }
+    if b==60 { return 64u64; }
+    if b==62 { return 65u64; }
+    if b==33 { return 70u64; }
+    if b==38 { return 71u64; }
+    if b==124 { return 72u64; }
+    if b==94 { return 73u64; }
+    if b==126 { return 74u64; }
+    if b==61 { return 77u64; }
+    if b==46 { return 88u64; }
+    if b==58 { return 94u64; }
+    if b==59 { return 95u64; }
+    if b==44 { return 96u64; }
+    if b==40 { return 97u64; }
+    if b==41 { return 98u64; }
+    if b==91 { return 99u64; }
+    if b==93 { return 100u64; }
+    if b==123 { return 101u64; }
+    if b==125 { return 102u64; }
+    if b==63 { return 104u64; }
+    if b==64 { return 105u64; }
+    return 0u64;
+}
+
+// Retorna la posicion justo tras un escape valido, o 0 si es invalido.
+// `pos` apunta a la barra invertida. Igual que scanner.rs::escape.
+fn skip_escape(source:u64,length:u64,pos:u64)->u64 {
+    let mut p:u64=pos+1;
+    if p>=length { return 0; }
+    let e:u64=read_u8(source+p);
+    if e==110 || e==116 || e==114 || e==92 || e==34 || e==39 || e==48 { return p+1; }
+    if e==120 {
+        p+=1;
+        let mut k:u64=0;
+        while k<2 {
+            if p>=length { return 0; }
+            if !is_hex(read_u8(source+p)) { return 0; }
+            p+=1;
+            k+=1;
+        }
+        return p;
+    }
+    return 0;
+}
+
+fn write_u32(address:u64,value:u64) {
+    unsafe {
+        let target:*mut u32=address as *mut u32;
+        volatile_store(target,value as u32);
+    }
+}
+
+// Escribe un registro de 16 bytes: kind,start,end,value.
+fn write_record(out:u64,index:u64,kind:u64,start:u64,end:u64,value:u64) {
+    let base:u64=out+index*16u64;
+    write_u32(base,kind);
+    write_u32(base+4u64,start);
+    write_u32(base+8u64,end);
+    write_u32(base+12u64,value);
+}
+
+pub fn zen_lex_tokens(source:u64,length:u64,out:u64,max_tokens:u64)->u64 {
+    let mut pos:u64=0;
+    let mut count:u64=0;
+
+    while pos<length {
+        let b:u64=byte_at(source,length,pos);
+        if is_space(b) {
+            pos+=1;
+            continue;
+        }
+        if b==47 && byte_at(source,length,pos+1)==47 {
+            pos+=2;
+            while pos<length && byte_at(source,length,pos)!=10 { pos+=1; }
+            continue;
+        }
+        if b==47 && byte_at(source,length,pos+1)==42 {
+            pos+=2;
+            let mut depth:u64=1;
+            while depth>0 && pos<length {
+                let c:u64=byte_at(source,length,pos);
+                if c==47 && byte_at(source,length,pos+1)==42 {
+                    depth+=1;
+                    pos+=2;
+                } else if c==42 && byte_at(source,length,pos+1)==47 {
+                    depth-=1;
+                    pos+=2;
+                } else {
+                    pos+=1;
+                }
+            }
+            if depth>0 { return 4294967295u64; }
+            continue;
+        }
+
+        let start:u64=pos;
+
+        // Identificador o keyword.
+        if is_alpha(b) || b==95 {
+            pos+=1;
+            while pos<length && is_ident_char(byte_at(source,length,pos)) { pos+=1; }
+            let mut kind:u64=keyword_id(source,length,start,pos-start);
+            let mut value:u64=0u64;
+            if kind==0u64 {
+                kind=7u64;
+                value=fnv1a(source,start,pos);
+            }
+            if count>=max_tokens { return 4294967295u64; }
+            write_record(out,count,kind,start,pos,value);
+            count+=1;
+            continue;
+        }
+
+        // Literal numerico.
+        if is_digit(b) {
+            let mut base:u64=10;
+            let mut prefix:u64=0;
+            if b==48 {
+                let n:u64=byte_at(source,length,pos+1);
+                if n==120 || n==88 {
+                    base=16;
+                    pos+=2;
+                    prefix=2;
+                } else if n==98 || n==66 {
+                    base=2;
+                    pos+=2;
+                    prefix=2;
+                } else if n==111 || n==79 {
+                    base=8;
+                    pos+=2;
+                    prefix=2;
+                }
+            }
+            let mut invalid:bool=false;
+            if pos>=length {
+                invalid=true;
+            } else if !is_digit_base(byte_at(source,length,pos),base) {
+                invalid=true;
+            }
+            while pos<length {
+                let d:u64=byte_at(source,length,pos);
+                if is_digit_base(d,base) {
+                    pos+=1;
+                } else if d==95 {
+                    pos+=1;
+                } else {
+                    break;
+                }
+            }
+
+            let mut is_float:bool=false;
+            if base==10 && pos<length {
+                if byte_at(source,length,pos)==46 && byte_at(source,length,pos+1)!=46 {
+                    is_float=true;
+                    pos+=1;
+                    while pos<length {
+                        let d:u64=byte_at(source,length,pos);
+                        if is_digit(d) {
+                            pos+=1;
+                        } else if d==95 {
+                            pos+=1;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+            let mut bad_exp:bool=false;
+            if base==10 && pos<length {
+                let e:u64=byte_at(source,length,pos);
+                if e==101 || e==69 {
+                    is_float=true;
+                    pos+=1;
+                    let s:u64=byte_at(source,length,pos);
+                    if s==43 || s==45 { pos+=1; }
+                    if pos>=length || !is_digit(byte_at(source,length,pos)) {
+                        bad_exp=true;
+                    } else {
+                        while pos<length {
+                            let d:u64=byte_at(source,length,pos);
+                            if is_digit(d) {
+                                pos+=1;
+                            } else if d==95 {
+                                pos+=1;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let suffix_start:u64=pos;
+            if !bad_exp {
+                while pos<length && is_ident_char(byte_at(source,length,pos)) { pos+=1; }
+            }
+            if invalid || bad_exp { return 4294967295u64; }
+            let suffix_len:u64=pos-suffix_start;
+            let mut good:bool=false;
+            if suffix_len==0 {
+                good=true;
+            } else if is_float {
+                if text_eq(source,length,suffix_start,suffix_len,"f32") { good=true; }
+                if text_eq(source,length,suffix_start,suffix_len,"f64") { good=true; }
+            } else {
+                if is_int_suffix(source,length,suffix_start,suffix_len) { good=true; }
+            }
+            if !good { return 4294967295u64; }
+
+            let mut kind:u64=1u64;
+            let mut value:u64=0u64;
+            if is_float {
+                kind=2u64;
+            } else {
+                value=number_value(source,length,start+prefix,base);
+            }
+            if count>=max_tokens { return 4294967295u64; }
+            write_record(out,count,kind,start,pos,value);
+            count+=1;
+            continue;
+        }
+
+        // Literal de cadena.
+        if b==34 {
+            pos+=1;
+            let mut closed:bool=false;
+            let mut bad:bool=false;
+            while pos<length {
+                let c:u64=byte_at(source,length,pos);
+                if c==34 {
+                    pos+=1;
+                    closed=true;
+                    break;
+                }
+                if c==10 || c==13 {
+                    bad=true;
+                    break;
+                }
+                if c==92 {
+                    let after:u64=skip_escape(source,length,pos);
+                    if after==0 {
+                        bad=true;
+                        pos+=1;
+                        if pos<length { pos+=1; }
+                        break;
+                    }
+                    pos=after;
+                } else {
+                    pos+=1;
+                }
+            }
+            if !closed || bad { return 4294967295u64; }
+            if count>=max_tokens { return 4294967295u64; }
+            write_record(out,count,5u64,start,pos,fnv1a(source,start+1u64,pos-1u64));
+            count+=1;
+            continue;
+        }
+
+        // Literal de caracter.
+        if b==39 {
+            pos+=1;
+            let mut bad:bool=false;
+            if pos>=length {
+                bad=true;
+            } else {
+                let c:u64=byte_at(source,length,pos);
+                if c==39 || c==10 || c==13 {
+                    bad=true;
+                } else if c==92 {
+                    let after:u64=skip_escape(source,length,pos);
+                    if after==0 {
+                        bad=true;
+                        pos+=1;
+                        if pos<length { pos+=1; }
+                    } else {
+                        pos=after;
+                    }
+                } else if c>=128 {
+                    // Scalar UTF-8: byte inicial + continuaciones 10xxxxxx.
+                    pos+=1;
+                    while pos<length {
+                        let cont:u64=byte_at(source,length,pos);
+                        if (cont & 192u64)==128u64 { pos+=1; } else { break; }
+                    }
+                } else {
+                    pos+=1;
+                }
+                if !bad {
+                    if pos<length && byte_at(source,length,pos)==39 {
+                        pos+=1;
+                    } else {
+                        bad=true;
+                    }
+                }
+            }
+            if bad { return 4294967295u64; }
+            if count>=max_tokens { return 4294967295u64; }
+            write_record(out,count,4u64,start,pos,fnv1a(source,start+1u64,pos-1u64));
+            count+=1;
+            continue;
+        }
+
+        // Operadores y puntuacion.
+        let oplen:u64=op_len(source,length,pos);
+        if oplen>0 {
+            let kind:u64=op_kind(source,length,pos);
+            if kind==0u64 { return 4294967295u64; }
+            pos+=oplen;
+            if count>=max_tokens { return 4294967295u64; }
+            write_record(out,count,kind,start,pos,0u64);
+            count+=1;
+            continue;
+        }
+        return 4294967295u64;
+    }
+
+    return count;
+}

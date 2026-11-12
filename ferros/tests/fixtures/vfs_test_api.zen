@@ -1,0 +1,132 @@
+// Host-only VFS suite. Returns a bitmask of failed checks (0 means all pass),
+// so the C mock can report a precise failure without privileged code.
+fn test_scratch()->u64 {
+    return ferros_vfs_state()+2048;
+}
+
+fn test_path_hello() {
+    let path:u64=test_scratch();
+    let name:str="hello.zen";
+    let mut i:u64=0;
+    while i<str_len(name) {
+        memory_write8(path+i,str_byte(name,i));
+        i+=1;
+    }
+    memory_write8(path+i,0u8);
+}
+
+fn test_path_root() {
+    let path:u64=test_scratch();
+    memory_write8(path,47u8);
+    memory_write8(path+1,0u8);
+}
+
+pub fn test_vfs_suite()->u64 {
+    let mut fails:u64=0;
+    if !vfs_init() { return 1; }
+    let path:u64=test_scratch();
+    let buf:u64=path+512;
+    let src:u64=path+1024;
+
+    test_path_hello();
+    let fd:i64=vfs_open(path);
+    if fd!=100 { fails+=2; }
+    if vfs_read(fd as u64,buf,16)!=5 { fails+=4; }
+    if memory_read8(buf)!=72u8 || memory_read8(buf+4)!=111u8 { fails+=8; }
+    if vfs_close(fd as u64)!=0 { fails+=16; }
+    if vfs_read(100u64,buf,16)!=-9 { fails+=32; }
+    if vfs_open(path+2)!=-2 { fails+=64; }
+
+    test_path_root();
+    let dir_fd:i64=vfs_open(path);
+    if dir_fd!=100 { fails+=128; }
+    if vfs_read(dir_fd as u64,buf,1)!=-21 { fails+=256; }
+    if vfs_write(dir_fd as u64,buf,1)!=-21 { fails+=512; }
+    if vfs_close(dir_fd as u64)!=0 { fails+=1024; }
+
+    test_path_hello();
+    let wfd:i64=vfs_open(path);
+    memory_write8(src,72u8);
+    memory_write8(src+1,105u8);
+    if vfs_write_user(wfd as u64,src,2)!=-13 { fails+=2048; }
+    let inode:u64=vfs_state(40)+64;
+    let pristine:u64=memory_read64(inode+16);
+    if vfs_write(wfd as u64,src,1)!=1 { fails+=4096; }
+    if memory_read64(inode+16)!=pristine+1u64 { fails+=8192; }
+    memory_store64(inode+16,pristine);
+    let block:u64=memory_read64(inode+24);
+    memory_write8(vfs_pool()+block*4096+pristine,0u8);
+    if vfs_close(wfd as u64)!=0 { fails+=16384; }
+
+    let mut opened:u64=0;
+    while opened<16 {
+        if vfs_open(path)<100 { fails+=16384; }
+        opened+=1;
+    }
+    if vfs_open(path)!=-24 { fails+=32768; }
+    vfs_close_all();
+    let reuse:i64=vfs_open(path);
+    if reuse!=100 { fails+=65536; }
+    vfs_close_all();
+
+    // Second fixture and real directory listing.
+    let notes:u64=path+1600u64;
+    let note_name:str="notes.txt";
+    let mut n:u64=0u64;
+    while n<str_len(note_name) {
+        memory_write8(notes+n,str_byte(note_name,n));
+        n+=1u64;
+    }
+    memory_write8(notes+n,0u8);
+    let nfd:i64=vfs_open(notes);
+    if nfd!=100 { fails+=536870912; }
+    let nread:i64=vfs_read(nfd as u64,buf,16);
+    if nread!=4 { fails+=1073741824; }
+    if memory_read8(buf)!=90u8 || memory_read8(buf+3)!=10u8 { fails+=2147483648; }
+    if vfs_close(nfd as u64)!=0 { fails+=4294967296; }
+    let dirbuf:u64=path+1536u64;
+    let dir_bytes:i64=vfs_readdir(dirbuf,256);
+    if dir_bytes!=20 { fails+=8589934592; }
+    if memory_read8(dirbuf)!=104u8 || memory_read8(dirbuf+9)!=0u8 { fails+=17179869184; }
+    if memory_read8(dirbuf+10)!=110u8 || memory_read8(dirbuf+19)!=0u8 { fails+=34359738368; }
+
+    // Full block rejects with ENOSPC rather than silently writing nothing.
+    memory_store64(inode+16,4096u64);
+    let ffd:i64=vfs_open(path);
+    if ffd!=100 { fails+=131072; }
+    if vfs_write(ffd as u64,src,1)!=-28 { fails+=262144; }
+    if vfs_close(ffd as u64)!=0 { fails+=524288; }
+    memory_store64(inode+16,pristine);
+
+    // No free blocks at all: allocation fails and the free counter is stable.
+    memory_store64(inode+24,0u64);
+    let pool:u64=vfs_pool();
+    let mut b:u64=0;
+    while b<256 {
+        memory_write8(pool+b,1u8);
+        b+=1;
+    }
+    let efd:i64=vfs_open(path);
+    if efd!=100 { fails+=1048576; }
+    if vfs_write(efd as u64,src,1)!=-28 { fails+=2097152; }
+    if vfs_state(16)!=250u64 { fails+=4194304; }
+    if vfs_close(efd as u64)!=0 { fails+=8388608; }
+    b=0;
+    while b<256 {
+        if b<6 { memory_write8(pool+b,1u8); } else { memory_write8(pool+b,0u8); }
+        b+=1;
+    }
+    memory_store64(inode+24,block);
+    memory_store64(inode+16,pristine);
+    vfs_set(16,250u64);
+
+    // The kernel self-test must run on a pristine fixture and leave it pristine.
+    if !vfs_self_test() { fails+=16777216; }
+    let final_size:u64=memory_read64(inode+16);
+    if final_size!=pristine { fails+=33554432; }
+    let final_data:u64=vfs_pool()+(memory_read64(inode+24))*4096;
+    if memory_read8(final_data)!=72u8 || memory_read8(final_data+1)!=101u8 { fails+=67108864; }
+    if memory_read8(final_data+2)!=108u8 || memory_read8(final_data+3)!=108u8 || memory_read8(final_data+4)!=111u8 { fails+=268435456; }
+    if vfs_state(16)!=250u64 { fails+=134217728; }
+    return fails;
+}

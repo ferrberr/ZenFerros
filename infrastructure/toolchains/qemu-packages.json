@@ -1,0 +1,229 @@
+[
+  {
+    "name": "capstone",
+    "version": "5.0.9-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/capstone-5.0.9-1-x86_64.pkg.tar.zst",
+    "sha256": "76fc16318206289010c1be7977c94d3ee0b48408d5fe3e558c05615a703aa1f5",
+    "licenses": [
+      "BSD-3-Clause"
+    ]
+  },
+  {
+    "name": "dtc",
+    "version": "1:1.8.1-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/dtc-1:1.8.1-1-x86_64.pkg.tar.zst",
+    "sha256": "c377d325b42c4250102615e779cdeb67816a176cd0c55c018f7c81920057eb43",
+    "licenses": [
+      "GPL-2.0-or-later"
+    ]
+  },
+  {
+    "name": "libcbor",
+    "version": "0.14.0-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/libcbor-0.14.0-1-x86_64.pkg.tar.zst",
+    "sha256": "c6178320776e798dbd9d558cd5891ab2462a10c96c3dbc2dd3624c86ee59cc7e",
+    "licenses": [
+      "MIT"
+    ]
+  },
+  {
+    "name": "libslirp",
+    "version": "4.9.7-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/libslirp-4.9.7-1-x86_64.pkg.tar.zst",
+    "sha256": "e13d70b0a8131b97a42da7b9b592d06a1cfc11fcf3bd1c1db69320fd880b30fb",
+    "licenses": [
+      "BSD",
+      "MIT"
+    ]
+  },
+  {
+    "name": "libtraceevent",
+    "version": "1:1.9.1-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/libtraceevent-1:1.9.1-1-x86_64.pkg.tar.zst",
+    "sha256": "9afaf9c4224e92022ad058f62f540e4599f4075e27788aae0e881a7e76c35602",
+    "licenses": [
+      "GPL-2.0-only",
+      "LGPL-2.1-only"
+    ]
+  },
+  {
+    "name": "libtracefs",
+    "version": "1.8.4-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/libtracefs-1.8.4-1-x86_64.pkg.tar.zst",
+    "sha256": "40ba696d72adb08859d1be34318bde2e4d4a219ec4c0c8d5b937b426a3eba540",
+    "licenses": [
+      "GPL-2.0-only",
+      "LGPL-2.1-only"
+    ]
+  },
+  {
+    "name": "libxdp",
+    "version": "1.6.3-2",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/libxdp-1.6.3-2-x86_64.pkg.tar.zst",
+    "sha256": "4146de33b9b12531064de40cb671537407c2267e4304159f407be92f2c8758a4",
+    "licenses": [
+      "GPL",
+      "LGPL",
+      "BSD2"
+    ]
+  },
+  {
+    "name": "libyaml",
+    "version": "0.2.5-3",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/libyaml-0.2.5-3-x86_64.pkg.tar.zst",
+    "sha256": "cd2385982a050dfce2ef0ac435b36e9574ece347bdf4ad016ee5ea78e30b4940",
+    "licenses": [
+      "MIT"
+    ]
+  },
+  {
+    "name": "ndctl",
+    "version": "85-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/ndctl-85-1-x86_64.pkg.tar.zst",
+    "sha256": "8473584f486f93fecefd62240ef1e83194e562c9ff899c1491036edae9e41443",
+    "licenses": [
+      "LGPL-2.1-only",
+      "GPL-2.0-only",
+      "CC0-1.0",
+      "MIT"
+    ]
+  },
+  {
+    "name": "qemu-common",
+    "version": "11.1.3-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/qemu-common-11.1.3-1-x86_64.pkg.tar.zst",
+    "sha256": "719ea022c1db83636af1cf836107bac0d25e4558f1eb35c98d8169ca3dde7678",
+    "licenses": [
+      "BSD-2-Clause",
+      "BSD-2-Clause-Patent",
+      "BSD-3-Clause",
+      "CC0-1.0",
+      "FSFAP",
+      "GPL-1.0-or-later",
+      "GPL-2.0-only",
+      "GPL-2.0-only WITH Linux-syscall-note",
+      "GPL-2.0-only WITH Linux-syscall-note OR BSD-2-Clause",
+      "GPL-2.0-only WITH Linux-syscall-note OR BSD-3-Clause",
+      "GPL-2.0-or-later",
+      "GPL-2.0-or-later OR BSD-3-Clause",
+      "GPL-2.0-or-later WITH Linux-syscall-note",
+      "ISC",
+      "LGPL-2.1-only OR BSD-3-Clause",
+      "LGPL-2.0-or-later",
+      "LGPL-2.1-or-later",
+      "LicenseRef-Public-Domain",
+      "MIT"
+    ]
+  },
+  {
+    "name": "qemu-system-x86",
+    "version": "11.1.3-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/qemu-system-x86-11.1.3-1-x86_64.pkg.tar.zst",
+    "sha256": "e8af5129dc126f7ea4773e7c8c0038af308018bef8b04d32eda10d4d8aba5091",
+    "licenses": [
+      "BSD-2-Clause",
+      "BSD-2-Clause-Patent",
+      "BSD-3-Clause",
+      "CC0-1.0",
+      "FSFAP",
+      "GPL-1.0-or-later",
+      "GPL-2.0-only",
+      "GPL-2.0-only WITH Linux-syscall-note",
+      "GPL-2.0-only WITH Linux-syscall-note OR BSD-2-Clause",
+      "GPL-2.0-only WITH Linux-syscall-note OR BSD-3-Clause",
+      "GPL-2.0-or-later",
+      "GPL-2.0-or-later OR BSD-3-Clause",
+      "GPL-2.0-or-later WITH Linux-syscall-note",
+      "ISC",
+      "LGPL-2.1-only OR BSD-3-Clause",
+      "LGPL-2.0-or-later",
+      "LGPL-2.1-or-later",
+      "LicenseRef-Public-Domain",
+      "MIT"
+    ]
+  },
+  {
+    "name": "qemu-system-x86-firmware",
+    "version": "11.1.3-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/qemu-system-x86-firmware-11.1.3-1-x86_64.pkg.tar.zst",
+    "sha256": "415990ddb279a77233be7537d0ae801514a1002dafca8bd78b025678ca0e39f4",
+    "licenses": [
+      "BSD-2-Clause",
+      "BSD-2-Clause-Patent",
+      "BSD-3-Clause",
+      "CC0-1.0",
+      "FSFAP",
+      "GPL-1.0-or-later",
+      "GPL-2.0-only",
+      "GPL-2.0-only WITH Linux-syscall-note",
+      "GPL-2.0-only WITH Linux-syscall-note OR BSD-2-Clause",
+      "GPL-2.0-only WITH Linux-syscall-note OR BSD-3-Clause",
+      "GPL-2.0-or-later",
+      "GPL-2.0-or-later OR BSD-3-Clause",
+      "GPL-2.0-or-later WITH Linux-syscall-note",
+      "ISC",
+      "LGPL-2.1-only OR BSD-3-Clause",
+      "LGPL-2.0-or-later",
+      "LGPL-2.1-or-later",
+      "LicenseRef-Public-Domain",
+      "MIT"
+    ]
+  },
+  {
+    "name": "rdma-core",
+    "version": "65.0-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/rdma-core-65.0-1-x86_64.pkg.tar.zst",
+    "sha256": "a7a0648650811fd753ded1003acd83871bc31a4eb998bc4d04cf050ed02a238b",
+    "licenses": [
+      "GPL-2.0-or-later OR LicenseRef-OpenIB.org-BSD-MIT",
+      "GPL-2.0-or-later OR LicenseRef-OpenIB.org-BSD-FreeBSD",
+      "GPL-2.0-or-later OR LicenseRef-Intel-BSD-3-Clause",
+      "GPL-2.0-or-later OR LicenseRef-PathScale-BSD-Patent-License",
+      "CC0-1.0",
+      "MIT",
+      "BSD-2-Clause",
+      "CPL-1.0 OR BSD-2-Clause OR GPL-2.0-or-later"
+    ]
+  },
+  {
+    "name": "seabios",
+    "version": "1.17.0-2",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/seabios-1.17.0-2-any.pkg.tar.zst",
+    "sha256": "edf543abcff088f94779fa1ec81096867fe5bff06b835da8e45c9c5b0e4d5269",
+    "licenses": [
+      "CPL-1.0 OR LGPL-2.0-only",
+      "GPL-2.0-only",
+      "GPL-2.0-or-later",
+      "LGPL-2.0-only",
+      "LGPL-3.0-only"
+    ]
+  },
+  {
+    "name": "vde2",
+    "version": "2.3.3-10",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/vde2-2.3.3-10-x86_64.pkg.tar.zst",
+    "sha256": "deb9c99fc2334c9410ccf7ac8af68ffb1846df9eb6c02f523c15403052ef1f37",
+    "licenses": [
+      "GPL-2.0-or-later",
+      "LGPL-2.1-or-later"
+    ]
+  },
+  {
+    "name": "wolfssl",
+    "version": "5.9.4-1",
+    "url": "https://fastly.mirror.pkgbuild.com/extra/os/x86_64/wolfssl-5.9.4-1-x86_64.pkg.tar.zst",
+    "sha256": "fb71ad533b615c9e58772a05a65490c7ff1288c9109f9a03c2c191bfeadf69e4",
+    "licenses": [
+      "GPL-3.0-or-later"
+    ]
+  },
+  {
+    "name": "libaio",
+    "version": "0.3.113-5",
+    "url": "https://fastly.mirror.pkgbuild.com/core/os/x86_64/libaio-0.3.113-5-x86_64.pkg.tar.zst",
+    "sha256": "e746fdedefa9987ad06e918af78976917aba780be8ac51d22dcb9ded324a84ab",
+    "licenses": [
+      "LGPL-2.0-or-later"
+    ]
+  }
+]

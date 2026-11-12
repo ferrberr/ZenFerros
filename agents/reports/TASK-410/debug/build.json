@@ -1,0 +1,64 @@
+{
+  "release": false,
+  "payload": {
+    "elf_class": 2,
+    "entry": "0x100010",
+    "multiboot_offset": 4096,
+    "bytes": 12592,
+    "load_segments": [
+      {
+        "address": 1048576,
+        "file_offset": 4096,
+        "file_bytes": 4039,
+        "memory_bytes": 4039,
+        "flags": 5
+      },
+      {
+        "address": 1052672,
+        "file_offset": 8192,
+        "file_bytes": 294,
+        "memory_bytes": 294,
+        "flags": 4
+      },
+      {
+        "address": 1056768,
+        "file_offset": 4096,
+        "file_bytes": 0,
+        "memory_bytes": 77824,
+        "flags": 6
+      }
+    ]
+  },
+  "image": {
+    "elf_class": 1,
+    "entry": "0x100010",
+    "multiboot_offset": 4096,
+    "bytes": 11640,
+    "load_segments": [
+      {
+        "address": 1048576,
+        "file_offset": 4096,
+        "file_bytes": 4039,
+        "memory_bytes": 4039,
+        "flags": 5
+      },
+      {
+        "address": 1052672,
+        "file_offset": 8192,
+        "file_bytes": 294,
+        "memory_bytes": 294,
+        "flags": 4
+      },
+      {
+        "address": 1056768,
+        "file_offset": 4096,
+        "file_bytes": 0,
+        "memory_bytes": 77824,
+        "flags": 6
+      }
+    ]
+  },
+  "build_seconds": 0.069743,
+  "image_path": "/home/ferranfg/proyectos/ZenFerros/ferros/build/debug/ferros-multiboot.elf",
+  "undefined_symbols": 0
+}

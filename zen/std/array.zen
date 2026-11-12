@@ -1,0 +1,91 @@
+// Zen bootstrap array standard library (TASK-915).
+//
+// The helpers operate on `[u64]` slices: a borrowed view made of an element
+// pointer plus a runtime length. A slice is only valid as a function parameter;
+// callers pass a local `[u64; N]` array (the length is filled in at the call
+// site) or another slice. Writes through the slice are visible to the caller.
+//
+// Include it before the first item of your file:
+//
+//     use "../std/array.zen";
+//
+// Includes are textual and there are no namespaces: these functions live in
+// the same global namespace as the including program. They never allocate and
+// never rely on libc. Every element access is bounds-checked at runtime.
+//
+// The helpers are intentionally declared without `pub`: in freestanding mode a
+// `pub fn` becomes a C ABI export, and slices are not part of the C ABI. A
+// textual `use` makes them callable in hosted and freestanding programs alike.
+
+/// Sum of every element; an empty slice sums to 0.
+fn sum_slice(s: [u64]) -> u64 {
+    let n: u64 = slice_len(s);
+    let mut total: u64 = 0;
+    let mut i: u64 = 0;
+    while i < n {
+        total += s[i];
+        i += 1;
+    }
+    return total;
+}
+
+/// Largest element; an empty slice yields 0 (slices cannot be empty in the
+/// MVP because they are always built from a `[u64; N]` array with `N >= 1`).
+fn max_slice(s: [u64]) -> u64 {
+    let n: u64 = slice_len(s);
+    if n == 0 {
+        return 0;
+    }
+    let mut best: u64 = s[0];
+    let mut i: u64 = 1;
+    while i < n {
+        if s[i] > best {
+            best = s[i];
+        }
+        i += 1;
+    }
+    return best;
+}
+
+/// Reverse the elements in place, writing through the borrowed slice.
+fn reverse_slice(s: [u64]) -> void {
+    let n: u64 = slice_len(s);
+    let mut i: u64 = 0;
+    while i < n / 2 {
+        let j: u64 = n - 1 - i;
+        let tmp: u64 = s[i];
+        s[i] = s[j];
+        s[j] = tmp;
+        i += 1;
+    }
+}
+
+/// Insertion sort: ascending order, in place, `O(n^2)` and stable.
+fn sort_slice(s: [u64]) -> void {
+    let n: u64 = slice_len(s);
+    let mut i: u64 = 1;
+    while i < n {
+        let key: u64 = s[i];
+        let mut j: u64 = i;
+        // `j > 0` short-circuits, so `j - 1` never underflows.
+        while j > 0 && s[j - 1] > key {
+            s[j] = s[j - 1];
+            j -= 1;
+        }
+        s[j] = key;
+        i += 1;
+    }
+}
+
+/// `true` when `value` occurs at least once in the slice.
+fn contains_slice(s: [u64], value: u64) -> bool {
+    let n: u64 = slice_len(s);
+    let mut i: u64 = 0;
+    while i < n {
+        if s[i] == value {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}

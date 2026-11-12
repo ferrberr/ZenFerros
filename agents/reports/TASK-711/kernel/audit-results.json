@@ -1,0 +1,115 @@
+{
+  "results": [
+    {
+      "profile": "debug",
+      "scenario": "good64",
+      "status": 33,
+      "passed": true,
+      "seconds": 0.500929,
+      "userspace": {
+        "runs": 7,
+        "writes": 1,
+        "rejected": 6,
+        "irqs": 8
+      },
+      "image": "/tmp/zenferros-task711-sol/debug/ferros-multiboot.elf"
+    },
+    {
+      "profile": "debug",
+      "scenario": "good32",
+      "status": 33,
+      "passed": true,
+      "seconds": 0.481125,
+      "userspace": {
+        "runs": 7,
+        "writes": 1,
+        "rejected": 6,
+        "irqs": 8
+      }
+    },
+    {
+      "profile": "debug",
+      "scenario": "invalid-class",
+      "status": 35,
+      "expected_failure": true,
+      "seconds": 0.380038,
+      "panic": "FERROS PANIC: userspace test failed"
+    },
+    {
+      "profile": "debug",
+      "scenario": "entry-kernel",
+      "status": 35,
+      "expected_failure": true,
+      "seconds": 0.379604,
+      "panic": "FERROS PANIC: userspace test failed"
+    },
+    {
+      "profile": "debug",
+      "scenario": "kernel-origin-pf",
+      "status": 35,
+      "expected_failure": true,
+      "seconds": 0.397279,
+      "panic": "FERROS PANIC: unexpected interrupt or exception"
+    },
+    {
+      "profile": "release",
+      "scenario": "good64",
+      "status": 33,
+      "passed": true,
+      "seconds": 0.340817,
+      "userspace": {
+        "runs": 7,
+        "writes": 1,
+        "rejected": 6,
+        "irqs": 1
+      },
+      "image": "/tmp/zenferros-task711-sol/release/ferros-multiboot.elf"
+    },
+    {
+      "profile": "release",
+      "scenario": "good128",
+      "status": 33,
+      "passed": true,
+      "seconds": 0.345711,
+      "userspace": {
+        "runs": 7,
+        "writes": 1,
+        "rejected": 6,
+        "irqs": 1
+      }
+    },
+    {
+      "profile": "release",
+      "scenario": "invalid-class",
+      "status": 35,
+      "expected_failure": true,
+      "seconds": 0.330233,
+      "panic": "FERROS PANIC: userspace test failed"
+    },
+    {
+      "profile": "release",
+      "scenario": "entry-kernel",
+      "status": 35,
+      "expected_failure": true,
+      "seconds": 0.330439,
+      "panic": "FERROS PANIC: userspace test failed"
+    },
+    {
+      "profile": "release",
+      "scenario": "kernel-origin-pf",
+      "status": 35,
+      "expected_failure": true,
+      "seconds": 0.33116,
+      "panic": "FERROS PANIC: unexpected interrupt or exception"
+    }
+  ],
+  "source_sha256": {
+    "ferros/kernel/userspace.zen": "4946c9c980a70032fc9bb683b339c027ca4da7c4cd8155e8472a742d081732f1",
+    "ferros/kernel/interrupts.zen": "8f723683370a39a78219c7ff5aba7c9338fb0e9bc3ea4a6b3a92a634286431d5",
+    "ferros/kernel/main.zen": "3906972c85e9f6468d9eccf78df750bc99ace9a6c349ca861f2363efb6ea6d1c",
+    "ferros/kernel/arch/x86_64/userspace.S": "f5303c307efa39cf1362920248c4328e0011743fba0e7f832eed7b66747fdd1b",
+    "ferros/kernel/arch/x86_64/interrupts.S": "ac7fa19b3ea74f339e5aa72d3549c75ea99cd9b8a421f25a3e4456769d6b2811",
+    "infrastructure/scripts/build_ferros.py": "9e270f62b16f2f95b926939fa2e274c72a96e1af52d56839ddc038332a140239",
+    "infrastructure/scripts/boot_ferros.py": "b83945accfa824a63573c1fa3eb5eeeb3ef99201e72a235b7fff59b940052007"
+  }
+}

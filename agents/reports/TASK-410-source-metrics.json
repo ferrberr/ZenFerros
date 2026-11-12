@@ -1,0 +1,35 @@
+{
+  "method": "nonblank lines after removing C-style block and // comments in current authored sources",
+  "zen_kernel": [
+    {
+      "path": "ferros/kernel/main.zen",
+      "physical_lines": 70,
+      "code_lines": 60
+    }
+  ],
+  "assembly_primitives": [
+    {
+      "path": "ferros/kernel/arch/x86_64/io.S",
+      "physical_lines": 44,
+      "code_lines": 35
+    }
+  ],
+  "assembly_bootstrap": [
+    {
+      "path": "ferros/boot/entry.S",
+      "physical_lines": 126,
+      "code_lines": 98
+    }
+  ],
+  "linker_configuration": [
+    {
+      "path": "ferros/boot/linker.ld",
+      "physical_lines": 35,
+      "code_lines": 31
+    }
+  ],
+  "kernel_zen_percent_excluding_boot": 63.16,
+  "zen_percent_including_boot_assembly": 31.09,
+  "generated_c_physical_lines": 249,
+  "external_dependencies_in_kernel": 0
+}

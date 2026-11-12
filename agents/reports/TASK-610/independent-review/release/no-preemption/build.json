@@ -1,0 +1,82 @@
+{
+  "source_units": [
+    "arch/x86_64/abi.zen",
+    "drivers/serial.zen",
+    "memory.zen",
+    "interrupts.zen",
+    "scheduler.zen",
+    "runtime.zen",
+    "main.zen"
+  ],
+  "source_paths": [
+    "/tmp/zenferros-task611-review/no-preemption-source/ferros/kernel/arch/x86_64/abi.zen",
+    "/tmp/zenferros-task611-review/no-preemption-source/ferros/kernel/drivers/serial.zen",
+    "/tmp/zenferros-task611-review/no-preemption-source/ferros/kernel/memory.zen",
+    "/tmp/zenferros-task611-review/no-preemption-source/ferros/kernel/interrupts.zen",
+    "/tmp/zenferros-task611-review/no-preemption-source/ferros/kernel/scheduler.zen",
+    "/tmp/zenferros-task611-review/no-preemption-source/ferros/kernel/runtime.zen",
+    "/tmp/zenferros-task611-review/no-preemption-source/ferros/kernel/main.zen"
+  ],
+  "release": true,
+  "payload": {
+    "elf_class": 2,
+    "entry": "0x101000",
+    "multiboot_offset": 4096,
+    "bytes": 31000,
+    "load_segments": [
+      {
+        "address": 1048576,
+        "file_offset": 4096,
+        "file_bytes": 16384,
+        "memory_bytes": 16384,
+        "flags": 5
+      },
+      {
+        "address": 1064960,
+        "file_offset": 20480,
+        "file_bytes": 4096,
+        "memory_bytes": 4096,
+        "flags": 4
+      },
+      {
+        "address": 1069056,
+        "file_offset": 4096,
+        "file_bytes": 0,
+        "memory_bytes": 425984,
+        "flags": 6
+      }
+    ]
+  },
+  "image": {
+    "elf_class": 1,
+    "entry": "0x101000",
+    "multiboot_offset": 4096,
+    "bytes": 29636,
+    "load_segments": [
+      {
+        "address": 1048576,
+        "file_offset": 4096,
+        "file_bytes": 16384,
+        "memory_bytes": 16384,
+        "flags": 5
+      },
+      {
+        "address": 1064960,
+        "file_offset": 20480,
+        "file_bytes": 4096,
+        "memory_bytes": 4096,
+        "flags": 4
+      },
+      {
+        "address": 1069056,
+        "file_offset": 4096,
+        "file_bytes": 0,
+        "memory_bytes": 425984,
+        "flags": 6
+      }
+    ]
+  },
+  "build_seconds": 0.306519,
+  "image_path": "/tmp/zenferros-task611-review/release/no-preemption/ferros-multiboot.elf",
+  "undefined_symbols": 0
+}

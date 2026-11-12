@@ -1,0 +1,45 @@
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen build /tmp/zenferros-task711-sol/debug/kernel.zen --target x86_64-unknown-none --emit obj -o /tmp/zenferros-task711-sol/debug/kernel.o
+Built /tmp/zenferros-task711-sol/debug/kernel.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/boot/entry.S -o /tmp/zenferros-task711-sol/debug/entry.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/io.S -o /tmp/zenferros-task711-sol/debug/io.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/interrupts.S -o /tmp/zenferros-task711-sol/debug/interrupts.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/context.S -o /tmp/zenferros-task711-sol/debug/context.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/userspace.S -o /tmp/zenferros-task711-sol/debug/userspace.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /tmp/zenferros-task711-sol/debug/user_image.S -o /tmp/zenferros-task711-sol/debug/user_image.o
+exit=0
+
+$ ld -m elf_x86_64 -z max-page-size=0x1000 -z noexecstack -nostdlib -static -T /home/ferranfg/proyectos/ZenFerros/ferros/boot/linker.ld /tmp/zenferros-task711-sol/debug/entry.o /tmp/zenferros-task711-sol/debug/kernel.o /tmp/zenferros-task711-sol/debug/io.o /tmp/zenferros-task711-sol/debug/interrupts.o /tmp/zenferros-task711-sol/debug/context.o /tmp/zenferros-task711-sol/debug/userspace.o /tmp/zenferros-task711-sol/debug/user_image.o -o /tmp/zenferros-task711-sol/debug/ferros-x86_64.elf
+exit=0
+
+$ objcopy -O elf32-i386 /tmp/zenferros-task711-sol/debug/ferros-x86_64.elf /tmp/zenferros-task711-sol/debug/ferros-multiboot.elf
+exit=0
+
+$ nm -u /tmp/zenferros-task711-sol/debug/ferros-x86_64.elf
+exit=0
+
+$ nm -u /tmp/zenferros-task711-sol/debug/ferros-multiboot.elf
+exit=0
+
+$ objcopy --dump-section .text=/tmp/zenferros-task711-sol/debug/text64.bin /tmp/zenferros-task711-sol/debug/ferros-x86_64.elf
+exit=0
+
+$ objcopy --dump-section .text=/tmp/zenferros-task711-sol/debug/text32.bin /tmp/zenferros-task711-sol/debug/ferros-multiboot.elf
+exit=0
+
+$ objcopy --dump-section .rodata=/tmp/zenferros-task711-sol/debug/rodata64.bin /tmp/zenferros-task711-sol/debug/ferros-x86_64.elf
+exit=0
+
+$ objcopy --dump-section .rodata=/tmp/zenferros-task711-sol/debug/rodata32.bin /tmp/zenferros-task711-sol/debug/ferros-multiboot.elf
+exit=0

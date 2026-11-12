@@ -1,0 +1,5 @@
+READY TASK-710 architecture
+Commit 96a9135 on task710-arch
+Copy only ferros/kernel/arch/x86_64/userspace.S and ferros/kernel/arch/x86_64/interrupts.S
+Evidence ARCH-EVIDENCE.txt
+ASM/static checks pass. Runtime QEMU and independent review pending.

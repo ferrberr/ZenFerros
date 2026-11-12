@@ -1,0 +1,32 @@
+// Benchmark: sequential volatile byte write+read over a 16 MiB heap buffer.
+// Allocation through libc malloc/free, exactly as the C reference does.
+extern "C" {
+    fn malloc(size: u64) -> u64;
+    fn free(pointer: u64);
+}
+
+fn main() -> i32 {
+    let size: u64 = 16777216u64;
+    let mut buffer: u64 = 0u64;
+    unsafe { buffer = malloc(size); }
+    if buffer == 0u64 { return 2; }
+    let mut state: u64 = 12345u64;
+    let mut i: u64 = 0u64;
+    while i < size {
+        state = state * 6364136223846793005u64 + 1442695040888963407u64;
+        unsafe { volatile_store((buffer + i) as *mut u8, (state >> 33u64) as u8); }
+        i += 1u64;
+    }
+    let mut sum: u64 = 0u64;
+    i = 0u64;
+    while i < size {
+        let mut value: u8 = 0u8;
+        unsafe { value = volatile_load((buffer + i) as *u8); }
+        sum += value as u64;
+        i += 1u64;
+    }
+    unsafe { free(buffer); }
+    print_uint(sum);
+    print("\n");
+    return 0;
+}

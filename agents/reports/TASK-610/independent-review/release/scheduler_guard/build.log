@@ -1,0 +1,39 @@
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen build /tmp/zenferros-task611-review/release/scheduler_guard/kernel.zen --target x86_64-unknown-none --emit obj -o /tmp/zenferros-task611-review/release/scheduler_guard/kernel.o --release
+Built /tmp/zenferros-task611-review/release/scheduler_guard/kernel.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/boot/entry.S -o /tmp/zenferros-task611-review/release/scheduler_guard/entry.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/io.S -o /tmp/zenferros-task611-review/release/scheduler_guard/io.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/interrupts.S -o /tmp/zenferros-task611-review/release/scheduler_guard/interrupts.o
+exit=0
+
+$ cc -c -m64 -ffreestanding -fno-pie /home/ferranfg/proyectos/ZenFerros/ferros/kernel/arch/x86_64/context.S -o /tmp/zenferros-task611-review/release/scheduler_guard/context.o
+exit=0
+
+$ ld -m elf_x86_64 -z max-page-size=0x1000 -z noexecstack -nostdlib -static -T /home/ferranfg/proyectos/ZenFerros/ferros/boot/linker.ld /tmp/zenferros-task611-review/release/scheduler_guard/entry.o /tmp/zenferros-task611-review/release/scheduler_guard/kernel.o /tmp/zenferros-task611-review/release/scheduler_guard/io.o /tmp/zenferros-task611-review/release/scheduler_guard/interrupts.o /tmp/zenferros-task611-review/release/scheduler_guard/context.o -o /tmp/zenferros-task611-review/release/scheduler_guard/ferros-x86_64.elf
+exit=0
+
+$ objcopy -O elf32-i386 /tmp/zenferros-task611-review/release/scheduler_guard/ferros-x86_64.elf /tmp/zenferros-task611-review/release/scheduler_guard/ferros-multiboot.elf
+exit=0
+
+$ nm -u /tmp/zenferros-task611-review/release/scheduler_guard/ferros-x86_64.elf
+exit=0
+
+$ nm -u /tmp/zenferros-task611-review/release/scheduler_guard/ferros-multiboot.elf
+exit=0
+
+$ objcopy --dump-section .text=/tmp/zenferros-task611-review/release/scheduler_guard/text64.bin /tmp/zenferros-task611-review/release/scheduler_guard/ferros-x86_64.elf
+exit=0
+
+$ objcopy --dump-section .text=/tmp/zenferros-task611-review/release/scheduler_guard/text32.bin /tmp/zenferros-task611-review/release/scheduler_guard/ferros-multiboot.elf
+exit=0
+
+$ objcopy --dump-section .rodata=/tmp/zenferros-task611-review/release/scheduler_guard/rodata64.bin /tmp/zenferros-task611-review/release/scheduler_guard/ferros-x86_64.elf
+exit=0
+
+$ objcopy --dump-section .rodata=/tmp/zenferros-task611-review/release/scheduler_guard/rodata32.bin /tmp/zenferros-task611-review/release/scheduler_guard/ferros-multiboot.elf
+exit=0

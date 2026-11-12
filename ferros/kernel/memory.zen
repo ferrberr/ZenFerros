@@ -1,0 +1,335 @@
+// Memory subsystem for the first 64 MiB, one CPU and interrupts disabled.
+// State words: ready=0, free_count=8, next_page=16, managed_count=24,
+// reserved_end=32, heap_next=40, heap_start=48, heap_end=56, vmm_ready=64.
+// Bitmap: free bits at +0, snapshot scratch at +2048, managed bits at +4096.
+// All storage is linker-reserved inside the kernel BSS; no language globals.
+
+fn memory_read8(address: u64) -> u8 {
+    unsafe { return volatile_load(address as *u8); }
+}
+fn memory_write8(address: u64, value: u8) {
+    unsafe { volatile_store(address as *mut u8, value); }
+}
+fn memory_read32(address: u64) -> u64 {
+    // Byte decoding also supports unaligned Multiboot/E820 fields.
+    return (memory_read8(address) as u64) |
+        ((memory_read8(address + 1) as u64) << 8) |
+        ((memory_read8(address + 2) as u64) << 16) |
+        ((memory_read8(address + 3) as u64) << 24);
+}
+fn memory_read64(address: u64) -> u64 {
+    return memory_read32(address) | (memory_read32(address + 4) << 32);
+}
+fn memory_store64(address: u64, value: u64) {
+    unsafe { volatile_store(address as *mut u64, value); }
+}
+fn memory_state_read(offset: u64) -> u64 {
+    unsafe { return volatile_load((ferros_memory_state() + offset) as *u64); }
+}
+fn memory_state_write(offset: u64, value: u64) {
+    unsafe { volatile_store((ferros_memory_state() + offset) as *mut u64, value); }
+}
+fn memory_bit_read(base: u64, page: u64) -> bool {
+    let mask: u8 = 1u8 << (page % 8);
+    return (memory_read8(base + page / 8) & mask) != 0u8;
+}
+fn memory_bit_write(base: u64, page: u64, value: bool) {
+    let address: u64 = base + page / 8;
+    let mask: u8 = 1u8 << (page % 8);
+    let byte: u8 = memory_read8(address);
+    if value { memory_write8(address, byte | mask); }
+    else { memory_write8(address, byte & ~mask); }
+}
+fn memory_string_end(address: u64) -> u64 {
+    // QEMU may place loader strings immediately after the kernel, above 1 MiB.
+    // Bound each read to the future 64 MiB direct map and include the NUL byte.
+    if address == 0 || address >= 0x4000000u64 { return 0; }
+    let mut count: u64 = 0;
+    while count < 4096 {
+        if count >= 0x4000000u64 - address { return 0; }
+        if memory_read8(address + count) == 0u8 { return address + count + 1; }
+        count += 1;
+    }
+    return 0;
+}
+fn memory_map_valid(address: u64, length: u64) -> bool {
+    if address == 0 || address >= 0x100000u64 || length == 0 { return false; }
+    if length > 0x100000u64 - address { return false; }
+    let mut offset: u64 = 0;
+    let mut records: u64 = 0;
+    while offset < length {
+        if records >= 256 { return false; }
+        records += 1;
+        if length - offset < 4 { return false; }
+        let size: u64 = memory_read32(address + offset);
+        if size < 20 || size > length - offset - 4 { return false; }
+        let base: u64 = memory_read64(address + offset + 4);
+        let bytes: u64 = memory_read64(address + offset + 12);
+        if bytes > 18446744073709551615u64 - base { return false; }
+        offset += size + 4;
+    }
+    return offset == length;
+}
+fn memory_mark_range(base: u64, bytes: u64, available: bool) {
+    let limit: u64 = 0x4000000;
+    if base >= limit || bytes == 0 { return; }
+    let mut end: u64 = base + bytes;
+    if end > limit { end = limit; }
+    let reserved: u64 = memory_state_read(32);
+    let mut start: u64 = base;
+    if start < reserved { start = reserved; }
+    if start >= end { return; }
+    // Availability needs full pages; reservation overrides any overlapping page.
+    let mut first: u64 = start / 4096;
+    let mut last: u64 = end / 4096;
+    if available {
+        if start % 4096 != 0 { first += 1; }
+    } else {
+        if end % 4096 != 0 { last += 1; }
+    }
+    unsafe {
+        let bitmap: u64 = ferros_pmm_bitmap();
+        while first < last {
+            memory_bit_write(bitmap, first, available);
+            memory_bit_write(bitmap + 4096, first, available);
+            first += 1;
+        }
+    }
+}
+fn pmm_init(info: u64) -> bool {
+    memory_state_write(0, 0);
+    memory_state_write(8, 0);
+    memory_state_write(16, 0);
+    memory_state_write(24, 0);
+    // The info structure and mmap stay below 1 MiB. Bounded loader strings
+    // may be anywhere in the first 64 MiB and are conservatively reserved.
+    // Symbol/drive/APM/VBE/framebuffer payloads are not supported yet.
+    if info == 0 || info > 0x100000u64 - 116 { return false; }
+    let flags: u64 = memory_read32(info);
+    if (flags & 0x40u64) == 0 || (flags & ~0x24fu64) != 0 { return false; }
+    if (flags & 8u64) != 0 && memory_read32(info + 20) != 0 { return false; }
+    let length: u64 = memory_read32(info + 44);
+    let map: u64 = memory_read32(info + 48);
+    if !memory_map_valid(map, length) { return false; }
+    let mut boot_end: u64 = info + 116;
+    if map + length > boot_end { boot_end = map + length; }
+    if (flags & 4u64) != 0 {
+        let end: u64 = memory_string_end(memory_read32(info + 16));
+        if end == 0 { return false; }
+        if end > boot_end { boot_end = end; }
+    }
+    if (flags & 0x200u64) != 0 {
+        let end: u64 = memory_string_end(memory_read32(info + 64));
+        if end == 0 { return false; }
+        if end > boot_end { boot_end = end; }
+    }
+    unsafe {
+        let kernel_end: u64 = ferros_kernel_end();
+        if kernel_end < 0x100000u64 || kernel_end > 0x4000000u64 - 4095 { return false; }
+        if kernel_end > boot_end { boot_end = kernel_end; }
+        let reserved: u64 = (boot_end + 4095) & ~4095u64;
+        if reserved >= 0x4000000u64 { return false; }
+        memory_state_write(32, reserved);
+        let bitmap: u64 = ferros_pmm_bitmap();
+        let mut index: u64 = 0;
+        while index < 8192 { memory_write8(bitmap + index, 0u8); index += 1; }
+        // Two passes make reserved ranges win regardless of firmware record order.
+        let mut pass: u64 = 0;
+        while pass < 2 {
+            let mut offset: u64 = 0;
+            while offset < length {
+                let entry: u64 = map + offset;
+                let kind: u64 = memory_read32(entry + 20);
+                if (pass == 0 && kind == 1) || (pass == 1 && kind != 1) {
+                    memory_mark_range(memory_read64(entry + 4), memory_read64(entry + 12), kind == 1);
+                }
+                offset += memory_read32(entry) + 4;
+            }
+            pass += 1;
+        }
+        let mut page: u64 = 0;
+        let mut total: u64 = 0;
+        while page < 16384 {
+            if memory_bit_read(bitmap, page) { total += 1; }
+            page += 1;
+        }
+        if total == 0 { return false; }
+        memory_state_write(8, total);
+        memory_state_write(24, total);
+        memory_state_write(0, 1);
+        return true;
+    }
+}
+fn pmm_free_count() -> u64 { return memory_state_read(8); }
+fn pmm_alloc() -> u64 {
+    if memory_state_read(0) != 1 || pmm_free_count() == 0 { return 0; }
+    let start: u64 = memory_state_read(16) % 16384;
+    let mut scanned: u64 = 0;
+    unsafe {
+        let bitmap: u64 = ferros_pmm_bitmap();
+        while scanned < 16384 {
+            let page: u64 = (start + scanned) % 16384;
+            if memory_bit_read(bitmap, page) && memory_bit_read(bitmap + 4096, page) {
+                memory_bit_write(bitmap, page, false);
+                memory_state_write(8, pmm_free_count() - 1);
+                memory_state_write(16, (page + 1) % 16384);
+                return page * 4096;
+            }
+            scanned += 1;
+        }
+        return 0;
+    }
+}
+fn pmm_free(address: u64) -> bool {
+    if memory_state_read(0) != 1 || address % 4096 != 0 { return false; }
+    if address < memory_state_read(32) || address >= 0x4000000u64 { return false; }
+    let page: u64 = address / 4096;
+    unsafe {
+        let bitmap: u64 = ferros_pmm_bitmap();
+        if !memory_bit_read(bitmap + 4096, page) || memory_bit_read(bitmap, page) { return false; }
+        if pmm_free_count() >= memory_state_read(24) { return false; }
+        memory_bit_write(bitmap, page, true);
+        memory_state_write(8, pmm_free_count() + 1);
+        if page < memory_state_read(16) { memory_state_write(16, page); }
+        return true;
+    }
+}
+fn pmm_self_test() -> bool {
+    let before: u64 = pmm_free_count();
+    if before < 2 { return false; }
+    let first: u64 = pmm_alloc();
+    let second: u64 = pmm_alloc();
+    if first == 0 || second == 0 || first == second { return false; }
+    memory_store64(first, 0x1122334455667788u64);
+    memory_store64(second, 0xaabbccddeeff0011u64);
+    if memory_read64(first) != 0x1122334455667788u64 || memory_read64(second) != 0xaabbccddeeff0011u64 { return false; }
+    if pmm_free(first + 1) || pmm_free(0) || pmm_free(0x4000000u64) { return false; }
+    if !pmm_free(first) || pmm_free(first) || !pmm_free(second) { return false; }
+    if pmm_free_count() != before { return false; }
+    // Snapshot just the free bitmap into its reserved unused second half.
+    unsafe {
+        let bitmap: u64 = ferros_pmm_bitmap();
+        let next: u64 = memory_state_read(16);
+        let mut index: u64 = 0;
+        while index < 2048 { memory_write8(bitmap + 2048 + index, memory_read8(bitmap + index)); index += 1; }
+        let mut allocated: u64 = 0;
+        while allocated <= before && pmm_alloc() != 0 { allocated += 1; }
+        let exhausted: bool = allocated == before && pmm_free_count() == 0 && pmm_alloc() == 0;
+        index = 0;
+        while index < 2048 { memory_write8(bitmap + index, memory_read8(bitmap + 2048 + index)); index += 1; }
+        memory_state_write(8, before);
+        memory_state_write(16, next);
+        return exhausted;
+    }
+}
+
+fn vmm_init() -> bool {
+    memory_state_write(64, 0);
+    unsafe {
+        let tables: u64 = ferros_page_tables();
+        let kernel_end: u64 = ferros_kernel_end();
+        let text_start: u64 = ferros_text_start();
+        let text_end: u64 = ferros_text_end();
+        let ro_start: u64 = ferros_rodata_start();
+        let ro_end: u64 = ferros_rodata_end();
+        if tables % 4096 != 0 || tables < 0x100000u64 || tables + 147456 > kernel_end { return false; }
+        if text_start % 4096 != 0 || text_end % 4096 != 0 || ro_start % 4096 != 0 || ro_end % 4096 != 0 { return false; }
+        if text_start >= text_end || text_end > ro_start || ro_start >= ro_end || ro_end > kernel_end || kernel_end >= 0x4000000u64 { return false; }
+        if ferros_enable_nx() != 1 || (ferros_read_cr0() & 0x10000u64) == 0 { return false; }
+        let mut index: u64 = 0;
+        while index < 18432 { memory_store64(tables + index * 8, 0); index += 1; }
+        memory_store64(tables, (tables + 4096) | 3u64);
+        memory_store64(tables + 4096, (tables + 8192) | 3u64);
+        index = 0;
+        while index < 32 {
+            memory_store64(tables + 8192 + index * 8, (tables + 12288 + index * 4096) | 3u64);
+            index += 1;
+        }
+        let mut page: u64 = 1;
+        while page < 16384 {
+            let address: u64 = page * 4096;
+            let mut flags: u64 = 0x8000000000000003u64;
+            if address >= text_start && address < text_end { flags = 1; }
+            else if address >= ro_start && address < ro_end { flags = 0x8000000000000001u64; }
+            memory_store64(tables + 12288 + page * 8, address | flags);
+            page += 1;
+        }
+        ferros_load_cr3(tables);
+        memory_state_write(64, 1);
+        return true;
+    }
+}
+fn memory_page_entry(address: u64) -> u64 {
+    if address >= 0x4000000u64 { return 0; }
+    unsafe { return memory_read64(ferros_page_tables() + 12288 + (address / 4096) * 8); }
+}
+fn vmm_self_test() -> bool {
+    if memory_state_read(64) != 1 { return false; }
+    unsafe {
+        if ferros_read_cr3() != ferros_page_tables() || (ferros_read_cr0() & 0x10000u64) == 0 { return false; }
+        if memory_page_entry(0) != 0 { return false; }
+        let text: u64 = memory_page_entry(ferros_text_start());
+        let rodata: u64 = memory_page_entry(ferros_rodata_start());
+        let heap: u64 = memory_page_entry(ferros_heap_start());
+        if (text & 0x8000000000000007u64) != 1u64 { return false; }
+        if (rodata & 0x8000000000000007u64) != 0x8000000000000001u64 { return false; }
+        if (heap & 0x8000000000000007u64) != 0x8000000000000003u64 { return false; }
+        return true;
+    }
+}
+
+fn heap_init() {
+    unsafe {
+        let start: u64 = ferros_heap_start();
+        let end: u64 = ferros_heap_end();
+        memory_state_write(40, start);
+        memory_state_write(48, start);
+        memory_state_write(56, end);
+    }
+}
+fn heap_alloc(size: u64, alignment: u64) -> u64 {
+    if size == 0 || alignment == 0 || (alignment & (alignment - 1)) != 0 { return 0; }
+    let next: u64 = memory_state_read(40);
+    let start: u64 = memory_state_read(48);
+    let end: u64 = memory_state_read(56);
+    if start == 0 || next < start || next > end { return 0; }
+    let mask: u64 = alignment - 1;
+    if next > 18446744073709551615u64 - mask { return 0; }
+    let aligned: u64 = (next + mask) & ~mask;
+    if aligned < start || aligned > end || size > end - aligned { return 0; }
+    memory_state_write(40, aligned + size);
+    return aligned;
+}
+fn heap_self_test() -> bool {
+    heap_init();
+    let first: u64 = heap_alloc(17, 16);
+    let second: u64 = heap_alloc(33, 64);
+    if first == 0 || second == 0 || first % 16 != 0 || second % 64 != 0 || second < first + 17 { return false; }
+    let mut index: u64 = 0;
+    while index < 17 { memory_write8(first + index, 0x55u8); index += 1; }
+    index = 0;
+    while index < 33 { memory_write8(second + index, 0xaau8); index += 1; }
+    if memory_read8(first) != 0x55u8 || memory_read8(second + 32) != 0xaau8 { return false; }
+    let next: u64 = memory_state_read(40);
+    if heap_alloc(0, 16) != 0 || heap_alloc(1, 0) != 0 || heap_alloc(1, 3) != 0 || heap_alloc(18446744073709551615u64, 16) != 0 { return false; }
+    if memory_state_read(40) != next { return false; }
+    let remaining: u64 = memory_state_read(56) - next;
+    if remaining == 0 || heap_alloc(remaining, 1) != next || heap_alloc(1, 1) != 0 { return false; }
+    heap_init();
+    return true;
+}
+
+// Only the three linker-owned thread guards may be removed; never arbitrary BSS.
+fn vmm_guard_page(address:u64)->bool {
+    if memory_state_read(64)!=1 || address==0 || address%4096!=0 || address>=0x4000000u64 { return false; }
+    unsafe {
+        if ferros_read_cr3()!=ferros_page_tables() { return false; }
+        if address!=ferros_thread_stack_guard(1) && address!=ferros_thread_stack_guard(2) && address!=ferros_thread_stack_guard(3) { return false; }
+        if address<ferros_rodata_end() || address>ferros_kernel_end()-4096 { return false; }
+        let entry:u64=memory_page_entry(address);
+        if (entry & 0x8000000000000007u64)!=0x8000000000000003u64 || (entry & 0x000ffffffffff000u64)!=address { return false; }
+        memory_store64(ferros_page_tables()+12288+(address/4096)*8,0);
+        ferros_invlpg(address);
+        return memory_page_entry(address)==0;
+    }
+}

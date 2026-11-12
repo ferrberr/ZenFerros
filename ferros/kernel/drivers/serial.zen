@@ -1,0 +1,57 @@
+// COM1 configuration and bounded polling, shared by kernel and host-safe mocks.
+fn out8(port: u16, value: u8) {
+    unsafe { ferros_out8(port, value); }
+}
+
+fn in8(port: u16) -> u8 {
+    unsafe { return ferros_in8(port); }
+}
+
+fn serial_init() -> bool {
+    out8(0x3f9u16, 0u8);       // Disable UART interrupts.
+    out8(0x3fbu16, 0x80u8);    // Divisor latch.
+    out8(0x3f8u16, 3u8);       // 38400 baud.
+    out8(0x3f9u16, 0u8);
+    out8(0x3fbu16, 3u8);       // 8 data bits, no parity, 1 stop bit.
+    out8(0x3fau16, 0xc7u8);    // FIFO enabled and cleared.
+    out8(0x3fcu16, 0x1eu8);    // Loopback: validate the UART path.
+    out8(0x3f8u16, 0xaeu8);
+    if in8(0x3f8u16) != 0xaeu8 { return false; }
+    out8(0x3fcu16, 0x0fu8);    // Normal operation, DTR/RTS/OUT1/OUT2.
+    return true;
+}
+
+fn serial_byte(value: u8) -> bool {
+    let mut polls: u32 = 0;
+    while polls < 1000000u32 {
+        if (in8(0x3fdu16) & 0x20u8) != 0u8 {
+            out8(0x3f8u16, value);
+            return true;
+        }
+        polls += 1;
+    }
+    return false;
+}
+
+// Non-blocking RX probe: LSR bit0 reports a byte waiting in RBR. Returns -1
+// when the UART holds nothing, so callers poll instead of spinning forever.
+fn serial_try_read()->i64 {
+    if (in8(0x3fdu16) & 1u8)!=0u8 { return in8(0x3f8u16) as i64; }
+    return -1;
+}
+
+fn serial_write(message: str) -> bool {
+    let mut index: u64 = 0;
+    while index < str_len(message) {
+        if !serial_byte(str_byte(message, index)) { return false; }
+        index += 1;
+    }
+    return true;
+}
+
+
+// Controller-only diagnostics, never called by workers or interrupt handlers.
+fn serial_uint(value:u64)->bool {
+    if value>=10 { if !serial_uint(value/10) { return false; } }
+    return serial_byte(48u8+(value%10) as u8);
+}

@@ -1,0 +1,56 @@
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen build /home/ferranfg/proyectos/ZenFerros/zen/examples/hello.zen -o /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/hello-debug
+Built /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/hello-debug
+exit=0
+
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/hello-debug
+Hello, Zen!
+exit=0
+
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen build /home/ferranfg/proyectos/ZenFerros/zen/examples/hello.zen -o /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/hello-optimized --release
+Built /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/hello-optimized
+exit=0
+
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/hello-optimized
+Hello, Zen!
+exit=0
+
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen build /home/ferranfg/proyectos/ZenFerros/zen/examples/factorial.zen -o /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/factorial-debug
+Built /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/factorial-debug
+exit=0
+
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/factorial-debug
+factorial(10) = 3628800
+exit=0
+
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen build /home/ferranfg/proyectos/ZenFerros/zen/examples/factorial.zen -o /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/factorial-optimized --release
+Built /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/factorial-optimized
+exit=0
+
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/milestone-1/factorial-optimized
+factorial(10) = 3628800
+exit=0
+
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen version
+zen 0.1.0 (bootstrap)
+Host: x86_64-linux
+Backend: C11 via host cc (override with CC)
+Compiler build: release
+
+
+$ /home/ferranfg/proyectos/ZenFerros/zen/compiler/target/release/zen --help
+Zen native bootstrap compiler
+
+Usage: zen <COMMAND>
+
+Commands:
+  build    Compile a .zen file to a native executable
+  run      Compile and run a .zen file; propagate its exit status
+  check    Check syntax, names and types without generating a binary
+  version  Show compiler version and backend
+  lex      Print tokens for a .zen file
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+

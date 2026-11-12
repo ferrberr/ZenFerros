@@ -1,0 +1,23 @@
+extern "C" {
+ fn host_panic();
+ fn host_guard(address:u64)->bool;
+ fn host_ticks()->u64;
+ fn host_timer_start();
+ fn host_timer_stop();
+}
+fn kernel_panic(message:str) { unsafe { host_panic(); } }
+fn vmm_guard_page(address:u64)->bool { unsafe { return host_guard(address); } }
+fn irq_get(offset:u64)->u64 { unsafe { return host_ticks(); } }
+fn scheduler_timer_start() { unsafe { host_timer_start(); } }
+fn scheduler_timer_stop() { unsafe { host_timer_stop(); } }
+pub fn test_init()->bool { return scheduler_init(); }
+pub fn test_self()->bool { return scheduler_self_test(); }
+pub fn test_next(current:u64)->u64 { return scheduler_next_ready(current); }
+pub fn test_get(offset:u64)->u64 { return scheduler_get(offset); }
+pub fn test_set(offset:u64,value:u64) {
+ unsafe { let flags:u64=ferros_irq_save(); scheduler_set(offset,value); ferros_irq_restore(flags); }
+}
+pub fn test_stack(id:u64)->bool { return scheduler_stack_valid(id); }
+pub fn test_running()->bool { return scheduler_running_valid(); }
+pub fn test_yield() { scheduler_yield(); }
+pub fn test_timer() { scheduler_on_timer(); }

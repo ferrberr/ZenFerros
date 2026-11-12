@@ -1,0 +1,17 @@
+// Factorial recursivo en Zen MVP
+// Prueba: funciones, recursión, enteros, if/else, return
+
+fn factorial(n: u64) -> u64 {
+    if n <= 1 {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+fn main() -> i32 {
+    let result: u64 = factorial(10);
+    print("factorial(10) = ");
+    print_uint(result);
+    print("\n");
+    return 0;
+}

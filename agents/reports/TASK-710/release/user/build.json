@@ -1,0 +1,36 @@
+{
+  "artifact_path": "/home/ferranfg/proyectos/ZenFerros/ferros/build/release/user/ferros-user.elf",
+  "source_path": "/home/ferranfg/proyectos/ZenFerros/ferros/user/main.zen",
+  "release": true,
+  "undefined_symbols": 0,
+  "build_seconds": 0.05651,
+  "entry": 1073741824,
+  "bytes": 13568,
+  "load_segments": [
+    {
+      "address": 1073741824,
+      "file_offset": 4096,
+      "file_bytes": 4096,
+      "memory_bytes": 4096,
+      "page_end": 1073745920,
+      "flags": 5
+    },
+    {
+      "address": 1073745920,
+      "file_offset": 8192,
+      "file_bytes": 4096,
+      "memory_bytes": 4096,
+      "page_end": 1073750016,
+      "flags": 4
+    },
+    {
+      "address": 1073750016,
+      "file_offset": 4096,
+      "file_bytes": 0,
+      "memory_bytes": 4096,
+      "page_end": 1073754112,
+      "flags": 6
+    }
+  ],
+  "bss_bytes": 4096
+}

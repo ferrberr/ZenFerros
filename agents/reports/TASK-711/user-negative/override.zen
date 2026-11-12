@@ -1,0 +1,1 @@
+pub fn user_entry(case_id:u64) { let probe:u64=case_id+1u64; }
