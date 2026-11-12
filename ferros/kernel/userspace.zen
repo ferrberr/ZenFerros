@@ -219,7 +219,7 @@ fn user_open(path_ptr:u64,flags:u64)->i64 {
         i += 1;
     }
     memory_write8(kernel_path + i, 0u8);
-    return vfs_open(kernel_path);
+    return vfs_open_flags(kernel_path,flags);
 }
 fn user_read(fd:u64,buf:u64,count:u64)->i64 {
     if count > 4096 { return -22; } // EINVAL

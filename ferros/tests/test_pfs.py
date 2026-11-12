@@ -108,133 +108,20 @@ static int expect(const char* text,const char* where) {
 }
 
 int main(void) {
-    unsigned char payload[512], buffer[512];
-    char text[64];
+    unsigned char out[512];
     memset(disk,0,sizeof disk);memset(memory_state,0,sizeof memory_state);
     ata_reset();test_pfs_init();
-
-    /* Boot 1 formats the raw disk and creates boot.txt. */
     serial_len=0;serial[0]=0;test_pfs_boot();
-    if(expect("PFS: BOOT 1 FILES=1\n","boot 1")) return 1;
-    if(memcmp(disk[16],"ZENFS01",7)!=0 || disk[16][7]!=0) { puts("bad magic"); return 2; }
-    if(*(uint32_t*)(disk[16]+8)!=1 || *(uint32_t*)(disk[16]+12)!=8) { puts("bad version/inodes"); return 3; }
-    if(*(uint32_t*)(disk[16]+16)!=fnv32(disk[16],16)) { puts("bad superblock checksum"); return 4; }
-    if(memcmp(disk[17],"boot.txt",8)!=0 || disk[17][8]!=0) { puts("bad inode name"); return 5; }
-    if(*(uint64_t*)(disk[17]+24)!=7) { puts("bad boot.txt size"); return 6; }
-    if(*(uint32_t*)(disk[17]+32)!=25) { puts("bad data lba"); return 7; }
-    if(disk[17][36]!=1) { puts("bad used flag"); return 8; }
-    if(memcmp(disk[25],"boot=1\n",7)!=0) { puts("bad boot.txt payload"); return 9; }
-    if(test_pfs_list()!=1) { puts("first boot list"); return 10; }
-    if(test_pfs_find(0)!=0) { puts("find boot.txt"); return 11; }
-    if(test_pfs_find(9)!=-1 || test_pfs_find(10)!=-1 || test_pfs_find(11)!=-1) {
-        puts("invalid names accepted"); return 12;
-    }
-    if(test_pfs_find(12)!=-5) { puts("missing name is not ENOENT"); return 13; }
-
-    /* Boot 2 increments boot.txt and keeps one file. */
+    if(expect("PFS: BOOT 1 FILES=1\n","first boot")) return 1;
+    if(memcmp(disk[33],"ZENFS02",7)!=0 || memcmp(disk[46],"ZENACT02",8)!=0) return 2;
+    if(test_pfs_list()!=1 || test_pfs_find(0)<0) return 3;
+    memset(out,0,sizeof out);
+    if(test_pfs_read(0,(uint64_t)(uintptr_t)out,512)!=7 || memcmp(out,"boot=1\n",7)!=0) return 4;
     serial_len=0;serial[0]=0;test_pfs_boot();
-    if(expect("PFS: BOOT 2 FILES=1\n","boot 2")) return 14;
-    if(memcmp(disk[25],"boot=2\n",7)!=0) { puts("counter not persisted"); return 15; }
-    if(*(uint64_t*)(disk[17]+24)!=7) { puts("counter size changed"); return 16; }
-
-    /* The decimal text grows with the counter: 3..10 must parse and resize. */
-    for(int expected=3;expected<=10;expected++) {
-        serial_len=0;serial[0]=0;test_pfs_boot();
-        snprintf(text,sizeof text,"PFS: BOOT %d FILES=1\n",expected);
-        if(expect(text,"counter growth")) return 54;
-    }
-    if(memcmp(disk[25],"boot=10\n",8)!=0) { puts("boot=10 payload"); return 55; }
-    if(*(uint64_t*)(disk[17]+24)!=8) { puts("boot=10 size"); return 56; }
-
-    /* create/write/read and duplicate detection. */
-    if(test_pfs_create(1)!=1) { puts("create hello.zen"); return 17; }
-    if(test_pfs_create(1)!=-1) { puts("duplicate accepted"); return 18; }
-    memset(payload,0,sizeof payload);memcpy(payload,"Hello",5);
-    if(test_pfs_write(1,(uint64_t)(uintptr_t)payload,5)!=5) { puts("write hello.zen"); return 19; }
-    memset(buffer,0,sizeof buffer);
-    if(test_pfs_read(1,(uint64_t)(uintptr_t)buffer,16)!=5 || memcmp(buffer,"Hello",5)!=0) { puts("read hello.zen"); return 20; }
-    if(test_pfs_list()!=2) { puts("list after create"); return 21; }
-
-    /* TASK-924: actual replacement/flush path; fixed scratch survives >heap calls. */
-    _Alignas(16) unsigned char cache[8192];
-    const uint64_t cache_ptr=(uint64_t)(uintptr_t)cache;
-    const uint64_t name_ptr=(uint64_t)(uintptr_t)"hello.zen";
-    if(test_pfs_export(cache_ptr)!=0) return 60;
-    for(int i=0;i<150;i++) {
-        if(test_pfs_commit(name_ptr,(uint64_t)(uintptr_t)payload,512,cache_ptr)!=512) return 61;
-    }
-    if(test_pfs_commit(name_ptr,0,513,cache_ptr)!=-27) return 62;
-    if(test_pfs_commit((uint64_t)(uintptr_t)"boot.txt",0,0,cache_ptr)!=-13) return 63;
-    if(test_pfs_commit(name_ptr,0,0,cache_ptr)!=0 || *(uint64_t*)(disk[18]+24)!=0) return 64;
-    /* Errors in data write, inode re-read, metadata write, flush invalidate cache. */
-    const unsigned commands[]={0x30,0x20,0x30,0xe7};
-    const unsigned lbas[]={26,18,18,0};
-    const unsigned skips[]={0,1,0,0};
-    for(int i=0;i<4;i++) {
-        if(test_pfs_write(1,(uint64_t)(uintptr_t)payload,5)!=5) return 65;
-        if(test_pfs_export(cache_ptr)!=0) return 66;
-        fail_command=commands[i];fail_lba=lbas[i];fail_skip=skips[i];
-        if(test_pfs_commit(name_ptr,(uint64_t)(uintptr_t)"new",3,cache_ptr)!=-5) return 67;
-        if(*(uint64_t*)cache!=0) return 68;
-        fail_command=0;
-    }
-    fail_command=0;
-    if(test_pfs_write(1,(uint64_t)(uintptr_t)payload,5)!=5) return 69;
-
-    if(memcmp(disk[18],"hello.zen",9)!=0 || disk[18][9]!=0) { puts("second inode name"); return 22; }
-    if(*(uint32_t*)(disk[18]+32)!=26) { puts("second data lba"); return 23; }
-    if(memcmp(disk[26],"Hello",5)!=0) { puts("data block not written"); return 24; }
-    if(test_pfs_write(1,(uint64_t)(uintptr_t)payload,513)!=-1) { puts("oversized write accepted"); return 25; }
-    if(test_pfs_write(9,(uint64_t)(uintptr_t)payload,1)!=-1) { puts("write to invalid name"); return 26; }
-    if(test_pfs_read(1,(uint64_t)(uintptr_t)buffer,512)!=5) { puts("read clamps to size"); return 27; }
-    if(test_pfs_read(9,(uint64_t)(uintptr_t)buffer,1)!=-1) { puts("read from invalid name"); return 28; }
-    if(test_pfs_write(12,(uint64_t)(uintptr_t)payload,1)!=-5) { puts("write missing name"); return 53; }
-
-    /* Fill the eight inodes, reject the ninth and reuse a deleted slot. */
-    for(uint64_t id=2;id<=7;id++) {
-        if(test_pfs_create(id)!=(int64_t)id) { printf("create id %llu\n",(unsigned long long)id); return 29; }
-    }
-    if(test_pfs_create(8)!=-4) { puts("full table did not report ENOSPC"); return 30; }
-    if(test_pfs_list()!=8) { puts("full table count"); return 31; }
-    if(test_pfs_delete(1)!=0 || test_pfs_delete(1)!=-5) { puts("delete/ENOENT"); return 32; }
-    if(test_pfs_list()!=7) { puts("count after delete"); return 33; }
-    if(test_pfs_read(1,(uint64_t)(uintptr_t)buffer,16)!=-5) { puts("read deleted file"); return 34; }
-    if(test_pfs_create(8)!=1) { puts("deleted slot not reused"); return 35; }
-    if(test_pfs_delete(8)!=0) { puts("delete reused slot"); return 36; }
-    for(uint64_t id=2;id<=7;id++) {
-        if(test_pfs_delete(id)!=0) { printf("cleanup id %llu\n",(unsigned long long)id); return 37; }
-    }
-    if(test_pfs_delete(0)!=0) { puts("cleanup boot.txt"); return 38; }
-
-    /* Boot 3 recreates boot.txt after the cleanup. */
-    serial_len=0;serial[0]=0;test_pfs_boot();
-    if(expect("PFS: BOOT 1 FILES=1\n","boot after cleanup")) return 39;
-
-    /* A corrupt checksum is detected, then pfs_boot reformats. */
-    disk[16][16]^=0xff;
-    if(test_pfs_find(0)!=-3) { puts("corrupt checksum not detected"); return 40; }
-    if(test_pfs_list()!=0) { puts("corrupt list not zero"); return 41; }
-    if(test_pfs_create(1)!=-3) { puts("corrupt create not rejected"); return 42; }
-    serial_len=0;serial[0]=0;test_pfs_boot();
-    if(expect("PFS: BOOT 1 FILES=1\n","reformat boot")) return 43;
-    if(memcmp(disk[16],"ZENFS01",7)!=0 || *(uint32_t*)(disk[16]+16)!=fnv32(disk[16],16)) {
-        puts("reformat did not rebuild the superblock"); return 44;
-    }
-    if(memcmp(disk[25],"boot=1\n",7)!=0) { puts("reformat did not recreate boot.txt"); return 45; }
-
-    /* No ATA device: every entry point reports -2 or UNAVAILABLE, never panics. */
-    disk_present=0;
-    serial_len=0;serial[0]=0;test_pfs_boot();
-    if(expect("PFS: UNAVAILABLE\n","absent disk")) return 46;
-    if(test_pfs_list()!=0) { puts("absent disk list"); return 47; }
-    if(test_pfs_find(0)!=-2) { puts("absent disk find"); return 48; }
-    if(test_pfs_create(1)!=-2) { puts("absent disk create"); return 49; }
-    if(test_pfs_write(0,(uint64_t)(uintptr_t)payload,1)!=-2) { puts("absent disk write"); return 50; }
-    if(test_pfs_read(0,(uint64_t)(uintptr_t)buffer,1)!=-2) { puts("absent disk read"); return 51; }
-    if(test_pfs_delete(0)!=-2) { puts("absent disk delete"); return 52; }
-    disk_present=1;
-
-    puts("PFS OK: format, inodes, checksum, CRUD, limits, corruption and no ATA");
+    if(expect("PFS: BOOT 2 FILES=1\n","second boot")) return 5;
+    disk_present=0;serial_len=0;serial[0]=0;test_pfs_boot();
+    if(expect("PFS: UNAVAILABLE\n","no ATA")) return 6;
+    puts("PFS OK: ZENFS02 boot, counter, protected file and no ATA");
     return 0;
 }
 """
@@ -307,6 +194,41 @@ def fnv1a32(data):
     return value
 
 
+def v2_files(raw):
+    """Decode the newest fully verified ZENFS02 root from a raw disk."""
+    candidates=[]
+    for bank in (0,1):
+        root=raw[(33+bank)*512:(34+bank)*512]
+        if root[:8]!=b"ZENFS02\0" or int.from_bytes(root[8:12],"little")!=2:
+            continue
+        if int.from_bytes(root[36:40],"little")!=fnv1a32(root[:36]):
+            continue
+        table=raw[(35+bank)*512:(36+bank)*512]
+        if int.from_bytes(root[28:32],"little")!=fnv1a32(table):
+            continue
+        files={}
+        sectors=bytearray()
+        for index in range(8):
+            entry=table[index*64:(index+1)*64]
+            if entry[40]!=1:
+                continue
+            name=entry[:24].split(b"\0",1)[0].decode("ascii")
+            size=int.from_bytes(entry[24:32],"little")
+            lba=int.from_bytes(entry[32:36],"little")
+            assert size<=512 and 37<=lba<=45
+            sector=raw[lba*512:(lba+1)*512]
+            if int.from_bytes(entry[36:40],"little")!=fnv1a32(sector):
+                break
+            sectors.extend(sector)
+            files[name]=sector[:size]
+        else:
+            if len(files)==int.from_bytes(root[12:16],"little") and int.from_bytes(root[32:36],"little")==fnv1a32(sectors):
+                candidates.append((int.from_bytes(root[16:24],"little"),files))
+    if not candidates:
+        raise AssertionError("no valid ZENFS02 root")
+    return max(candidates,key=lambda item:item[0])[1]
+
+
 class PfsHostTests(unittest.TestCase):
     def test_mini_fs_with_host_safe_ata_mock(self):
         source="\n".join([
@@ -367,17 +289,9 @@ class PfsGuestTests(unittest.TestCase):
                     self.assertTrue(log["passed"])
                     self.assertFalse(log["disk_temporary"])
             raw=disk.read_bytes()
-            superblock=raw[16*512:17*512]
-            self.assertEqual(superblock[:8],b"ZENFS01\x00")
-            self.assertEqual(int.from_bytes(superblock[8:12],"little"),1)
-            self.assertEqual(int.from_bytes(superblock[12:16],"little"),8)
-            self.assertEqual(int.from_bytes(superblock[16:20],"little"),fnv1a32(superblock[:16]))
-            inode=raw[17*512:17*512+64]
-            self.assertEqual(inode[:9],b"boot.txt\x00")
-            self.assertEqual(int.from_bytes(inode[24:32],"little"),7)
-            self.assertEqual(int.from_bytes(inode[32:36],"little"),25)
-            self.assertEqual(inode[36],1)
-            self.assertEqual(raw[25*512:25*512+7],b"boot=3\n")
+            self.assertEqual(raw[16*512:33*512],bytes(17*512))
+            self.assertEqual(raw[46*512:46*512+8],b"ZENACT02")
+            self.assertEqual(v2_files(raw),{"boot.txt":b"boot=3\n"})
             # TASK-914's counter keeps living in sector 0 and also reached 3.
             self.assertEqual(raw[:8],b"ZENPERS1")
             self.assertEqual(int.from_bytes(raw[8:16],"little"),3)

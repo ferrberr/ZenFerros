@@ -4,7 +4,7 @@
 **Estado**: EN_PROGRESO
 **Prioridad**: ALTA
 **Dependencias**: [TASK-924]
-**Archivos**: [docs/ferros/persistence.md, agents/decisions/ADR-024.md, agents/reports/TASK-926.md]
+**Archivos**: [docs/ferros/persistence.md, agents/decisions/ADR-029.md, agents/reports/TASK-926.md]
 
 ## Objetivo
 Fijar el formato de dos raíces ZENFS02, la selección de generaciones y la migración recuperable de ZENFS01.

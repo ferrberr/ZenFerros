@@ -198,6 +198,10 @@ fn vfs_pfs_tag()->u64 {
     return 0x5046534644000000u64;
 }
 
+fn vfs_pfs_pending_tag()->u64 {
+    return 0x50465350454e4400u64;
+}
+
 fn vfs_pfs_name(fd:u64)->u64 {
     return vfs_state_base()+1280+(fd-100)*24;
 }
@@ -205,6 +209,11 @@ fn vfs_pfs_name(fd:u64)->u64 {
 fn vfs_is_pfs(fd:u64)->bool {
     if fd<100u64 || fd>=116u64 { return false; }
     return vfs_state(1032+(fd-100)*8)==vfs_pfs_tag();
+}
+
+fn vfs_is_pfs_pending(fd:u64)->bool {
+    if fd<100u64 || fd>=116u64 { return false; }
+    return vfs_state(1032+(fd-100)*8)==vfs_pfs_pending_tag();
 }
 
 fn vfs_free_slot()->i64 {
@@ -219,6 +228,8 @@ fn vfs_free_slot()->i64 {
 // Copy up to 23 path bytes plus the terminating NUL into the descriptor name
 // area. The caller only calls this after pfs_find_ptr accepted the same path.
 fn vfs_copy_name(dst:u64,src:u64) {
+    let mut clear:u64=0u64;
+    while clear<24u64 { memory_write8(dst+clear,0u8); clear+=1u64; }
     let mut i:u64=0;
     while i<23 {
         let byte:u8=memory_read8(src+i);
@@ -229,8 +240,9 @@ fn vfs_copy_name(dst:u64,src:u64) {
     memory_write8(dst+i,0u8);
 }
 
-fn vfs_open(path:u64)->i64 {
+fn vfs_open_flags(path:u64,flags:u64)->i64 {
     if vfs_state(0)!=1 { return -1; }
+    if flags>1u64 { return -22i64; }
     let mut p:u64=path;
     if memory_read8(p)==47u8 { p+=1; }
     let inode:u64=ramfs_lookup(p);
@@ -245,6 +257,7 @@ fn vfs_open(path:u64)->i64 {
     // An empty path is the RAMFS root and never a PFS file; any PFS error
     // (missing disk, corrupt superblock, ENOENT) keeps the old ENOENT result.
     if memory_read8(p)!=0u8 {
+        if vfs_state(1168)!=0u64 { return -5i64; }
         let found:i64=pfs_find_ptr(p);
         if found>=0i64 {
             let free:i64=vfs_free_slot();
@@ -254,20 +267,34 @@ fn vfs_open(path:u64)->i64 {
             vfs_set(1032+slot*8,vfs_pfs_tag());
             return (100+slot) as i64;
         }
+        if flags==1u64 {
+            if !vfs_pfs_ptr_name_ok(p) { return -22i64; }
+            if !pfs_available() { return -5i64; }
+            let free:i64=vfs_free_slot();
+            if free<0i64 { return free; }
+            let slot:u64=free as u64;
+            vfs_copy_name(vfs_state_base()+1280+slot*24,p);
+            vfs_set(1032+slot*8,vfs_pfs_pending_tag());
+            return (100+slot) as i64;
+        }
     }
     return -2;
 }
+
+fn vfs_open(path:u64)->i64 { return vfs_open_flags(path,0u64); }
 
 fn vfs_inode(fd:u64)->u64 {
     if fd<100 { return 0; }
     if fd>=116 { return 0; }
     let value:u64=vfs_state(1032+(fd-100)*8);
-    if value==vfs_pfs_tag() { return 0; }
+    if value==vfs_pfs_tag() || value==vfs_pfs_pending_tag() { return 0; }
     return value;
 }
 
 fn vfs_read(fd:u64,buf:u64,count:u64)->i64 {
+    if vfs_is_pfs_pending(fd) { return -9i64; }
     if vfs_is_pfs(fd) {
+        if vfs_state(1168)!=0u64 { return -5i64; }
         let read:i64=pfs_read_ptr(vfs_pfs_name(fd),buf,count);
         if read<0i64 { return -5i64; } // EIO: the PFS is gone or corrupt
         return read;
@@ -290,7 +317,7 @@ fn vfs_read(fd:u64,buf:u64,count:u64)->i64 {
 }
 
 fn vfs_write(fd:u64,buf:u64,count:u64)->i64 {
-    if vfs_is_pfs(fd) { return vfs_write_pfs(fd,buf,count); }
+    if vfs_is_pfs(fd) || vfs_is_pfs_pending(fd) { return vfs_write_pfs(fd,buf,count); }
     let inode:u64=vfs_inode(fd);
     if inode==0 { return -9; }
     if memory_read64(inode)!=1u64 { return -21; }
@@ -317,7 +344,7 @@ fn vfs_write(fd:u64,buf:u64,count:u64)->i64 {
 // PFS descriptors replace existing files synchronously; boot.txt is protected.
 fn vfs_write_user(fd:u64,buf:u64,count:u64)->i64 {
     if vfs_state(0)!=1 { return -1; }
-    if vfs_is_pfs(fd) { return vfs_write_pfs(fd,buf,count); }
+    if vfs_is_pfs(fd) || vfs_is_pfs_pending(fd) { return vfs_write_pfs(fd,buf,count); }
     let inode:u64=vfs_inode(fd);
     if inode==0 { return -9; }
     if memory_read64(inode)!=1u64 { return -21; }
@@ -332,6 +359,7 @@ fn vfs_write_user(fd:u64,buf:u64,count:u64)->i64 {
 // inode order (boot.txt, ...). An absent or corrupt PFS contributes no names.
 fn vfs_readdir(buf:u64,count:u64)->i64 {
     if vfs_state(0)!=1 { return -1; }
+    if vfs_state(1168)!=0u64 { return -5i64; }
     let dir:u64=ramfs_dir();
     let mut ramfs_total:u64=0;
     let mut offset:u64=0;
@@ -369,7 +397,7 @@ fn vfs_readdir(buf:u64,count:u64)->i64 {
 }
 
 fn vfs_close(fd:u64)->i64 {
-    if vfs_is_pfs(fd) {
+    if vfs_is_pfs(fd) || vfs_is_pfs_pending(fd) {
         vfs_set(1032+(fd-100)*8,0);
         memory_write8(vfs_pfs_name(fd),0u8);
         return 0;
@@ -407,6 +435,7 @@ fn vfs_pfs_cache()->u64 {
 
 fn vfs_set_pfs_cache(cache:u64) {
     vfs_set(1160,cache);
+    vfs_set(1168,0u64);
 }
 
 fn vfs_pfs_ptr_length(name:u64)->u64 {
@@ -442,6 +471,7 @@ fn vfs_pfs_name_equals(entry:u64,name:u64)->bool {
 }
 
 fn pfs_available()->bool {
+    if vfs_state(1168)!=0u64 { return false; }
     let cache:u64=vfs_pfs_cache();
     if cache==0u64 { return false; }
     return memory_read64(cache)>0u64;
@@ -757,18 +787,38 @@ fn vfs_self_test()->bool {
 fn vfs_write_pfs(fd:u64,buf:u64,count:u64)->i64 {
     if count>512u64 { return -27i64; }
     let name:u64=vfs_pfs_name(fd);
+    let pending:bool=vfs_is_pfs_pending(fd);
+    if !pending && !vfs_is_pfs(fd) { return -9i64; }
+    if !pfs_available() { return -5i64; }
     let found:i64=pfs_find_ptr(name);
-    if found<0i64 { return -5i64; }
+    if !pending && found<0i64 { return -5i64; }
     let cache:u64=vfs_pfs_cache();
     let result:i64=pfs_commit_ptr(name,buf,count,cache);
-    if result<0i64 { return result; }
-    let entry:u64=cache+8u64+(found as u64)*32u64;
-    let data:u64=cache+264u64+(found as u64)*512u64;
-    let mut index:u64=0;
-    while index<count {
-        memory_write8(data+index,memory_read8(buf+index));
-        index+=1u64;
+    if result<0i64 {
+        if cache!=0u64 && memory_read64(cache)==0u64 { vfs_set(1168,1u64); }
+        return result;
+    }
+    let mut index:u64=0u64;
+    if found>=0i64 { index=found as u64; }
+    else {
+        index=memory_read64(cache);
+        if index>=8u64 { memory_store64(cache,0u64); return -5i64; }
+        let new_entry:u64=cache+8u64+index*32u64;
+        let mut char_index:u64=0u64;
+        while char_index<24u64 {
+            memory_write8(new_entry+char_index,memory_read8(name+char_index));
+            char_index+=1u64;
+        }
+    }
+    let entry:u64=cache+8u64+index*32u64;
+    let data:u64=cache+264u64+index*512u64;
+    let mut offset:u64=0u64;
+    while offset<count {
+        memory_write8(data+offset,memory_read8(buf+offset));
+        offset+=1u64;
     }
     memory_store64(entry+24u64,count);
+    if found<0i64 { memory_store64(cache,memory_read64(cache)+1u64); }
+    if pending { vfs_set(1032+(fd-100u64)*8u64,vfs_pfs_tag()); }
     return result;
 }

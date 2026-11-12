@@ -191,7 +191,7 @@ fn shell_ls() {
     }
 }
 
-// put <path> <text>: replace an existing persistent file through syscall 6.
+// put <path> <text>: create or replace a persistent file through syscall 6.
 // The command line limits text to <64 bytes; the syscall accepts up to 512.
 fn shell_put(base:u64,length:u64) {
     unsafe {
@@ -199,7 +199,7 @@ fn shell_put(base:u64,length:u64) {
         while split<length && volatile_load((base+split) as *u8)!=32u8 { split+=1u64; }
         if split==length { write_user("SHELL: FILE ERROR\n"); return; }
         volatile_store((base+split) as *mut u8,0u8);
-        let fd:u64=user_syscall(4u64,base+4u64,0u64,0u64);
+        let fd:u64=user_syscall(4u64,base+4u64,1u64,0u64);
         if fd<100u64 || fd>115u64 { write_user("SHELL: FILE ERROR\n"); return; }
         let size:u64=length-split-1u64;
         let result:u64=user_syscall(6u64,fd,base+split+1u64,size);
@@ -214,7 +214,7 @@ fn shell_command(base:u64,length:u64)->bool {
     if length==0u64 { return true; }
     if shell_line_equals(base,length,"exit") { return false; }
     if shell_line_equals(base,length,"help") {
-        write_user("commands: help ls cat exit\n");
+        write_user("commands: help ls cat put exit\n");
         return true;
     }
     if shell_line_equals(base,length,"ls") {

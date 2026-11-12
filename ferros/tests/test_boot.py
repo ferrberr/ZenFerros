@@ -102,8 +102,8 @@ class BootValidationTests(unittest.TestCase):
         marker=b"SHELL: READY\n"
         invalid=[EXPECTED.replace(marker,b""),EXPECTED.replace(marker,marker+marker),
                  EXPECTED.replace(b"SHELL: DONE\n",b""),
-                 EXPECTED.replace(b"SHELL> help\ncommands: help ls cat exit\n",b""),
-                 EXPECTED.replace(b"commands: help ls cat exit",b"commands: help ls"),
+                 EXPECTED.replace(b"SHELL> help\ncommands: help ls cat put exit\n",b""),
+                 EXPECTED.replace(b"commands: help ls cat put exit",b"commands: help ls"),
                  EXPECTED.replace(b"hello.zen\nnotes.txt\nboot.txt\n",b"hello.zen\nnotes.txt\n"),
                  EXPECTED.replace(b"hello.zen\nnotes.txt\nboot.txt\n",b"hello.zen\nboot.txt\nnotes.txt\n")]
         for serial in invalid:

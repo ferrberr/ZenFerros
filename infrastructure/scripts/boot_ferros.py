@@ -21,7 +21,7 @@ VFS_BLOCK=b"SHELL> ls\nhello.zen\nSHELL> cat hello.zen\nHello\n"
 # TASK-919: `ls` now also lists the ZENFS01 file boot.txt; the command script,
 # the VFS block and the shell write count (18) stay frozen.
 SHELL_TRANSCRIPT=(SHELL_READY+b"\nSHELL> ls\nhello.zen\nnotes.txt\nboot.txt\nSHELL> cat hello.zen\nHello\n"
-                  b"SHELL> help\ncommands: help ls cat exit\nSHELL> exit\n"+SHELL_DONE+b"\n")
+                  b"SHELL> help\ncommands: help ls cat put exit\nSHELL> exit\n"+SHELL_DONE+b"\n")
 DEFAULT_INPUT=b"ls\ncat hello.zen\nhelp\nexit\n"
 PERSIST_LINE=b"PERSIST: BOOT 1\n"
 PFS_LINE=b"PFS: BOOT 1 FILES=1\n"

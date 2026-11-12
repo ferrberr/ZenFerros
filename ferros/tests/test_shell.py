@@ -61,7 +61,7 @@ class ShellContractTests(unittest.TestCase):
     def test_shell_transcript_is_the_frozen_block_after_vfs(self):
         self.assertEqual(SHELL_TRANSCRIPT,
             b"SHELL: READY\nSHELL> ls\nhello.zen\nnotes.txt\nboot.txt\nSHELL> cat hello.zen\nHello\n"
-            b"SHELL> help\ncommands: help ls cat exit\nSHELL> exit\nSHELL: DONE\n")
+            b"SHELL> help\ncommands: help ls cat put exit\nSHELL> exit\nSHELL: DONE\n")
         self.assertEqual(EXPECTED_MESSAGES.count(SHELL_TRANSCRIPT),1)
         # TASK-919 only widens `ls`: RAMFS names first, then the PFS file.
         self.assertEqual(SHELL_TRANSCRIPT.index(b"hello.zen\nnotes.txt\nboot.txt\n"),

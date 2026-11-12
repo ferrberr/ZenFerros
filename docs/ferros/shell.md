@@ -24,7 +24,7 @@ No bloquea; no altera los contadores de `write` del Hito 6.
 
 | Comando | Efecto |
 |---|---|
-| `help` | imprime `commands: help ls cat exit` |
+| `help` | imprime `commands: help ls cat put exit` |
 | `ls` | enumera el directorio raíz por syscall 9: RAMFS (`hello.zen`, `notes.txt`) y después ZENFS01 (`boot.txt`) |
 | `cat <archivo>` | abre por VFS, lee y escribe el contenido; error → `SHELL: FILE ERROR`. Con TASK-919 admite también archivos persistentes de solo lectura como `cat boot.txt` |
 | `exit` | termina la sesión (`SHELL: DONE`) |
@@ -45,7 +45,7 @@ boot.txt
 SHELL> cat hello.zen
 Hello
 SHELL> help
-commands: help ls cat exit
+commands: help ls cat put exit
 SHELL> exit
 SHELL: DONE
 ```
